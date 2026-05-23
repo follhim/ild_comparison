@@ -1,0 +1,34 @@
+TITLE:
+DSEM - Stressed predicting Craving (random phi and beta);
+DATA:
+FILE = "/Users/seungjukim/R_Coding/Big_Papers/DSEM_Softwares/
+data_dsem.dat"; 
+VARIABLE:
+NAMES = id time craving_smoking stressed; 
+ MISSING=.;
+ 
+      CLUSTER = id;
+      LAGGED = craving_smoking(1);
+      TINTERVAL = time(1);
+ANALYSIS:
+
+      TYPE = TWOLEVEL RANDOM;
+      ESTIMATOR = BAYES;
+      BITERATIONS = 20000 (10000);
+      CHAINS = 4;
+      PROCESSORS = 4;
+MODEL:
+
+      %WITHIN%
+        phi  | craving_smoking ON craving_smoking&1;
+        beta | craving_smoking ON stressed;
+
+      %BETWEEN%
+        craving_smoking;
+        stressed;
+        [phi];
+        [beta];
+        phi beta craving_smoking stressed WITH
+        phi beta craving_smoking stressed;
+OUTPUT:
+TECH1 TECH8 CINTERVAL(HPD);

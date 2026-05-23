@@ -1,0 +1,610 @@
+Mplus VERSION 8.4 (Mac)
+MUTHEN & MUTHEN
+05/20/2026   6:36 PM
+
+INPUT INSTRUCTIONS
+
+  TITLE:
+  DSEM - Stressed predicting Craving (random phi and beta);
+  DATA:
+  FILE = "/Users/seungjukim/R_Coding/Big_Papers/DSEM_Softwares/
+  data_dsem.dat";
+  VARIABLE:
+  NAMES = id time craving_smoking stressed;
+   MISSING=.;
+
+        CLUSTER = id;
+        LAGGED = craving_smoking(1);
+        TINTERVAL = time(1);
+  ANALYSIS:
+
+        TYPE = TWOLEVEL RANDOM;
+        ESTIMATOR = BAYES;
+        BITERATIONS = 20000 (10000);
+        CHAINS = 4;
+        PROCESSORS = 4;
+  MODEL:
+
+        %WITHIN%
+          phi  | craving_smoking ON craving_smoking&1;
+          beta | craving_smoking ON stressed;
+
+        %BETWEEN%
+          craving_smoking;
+          stressed;
+          [phi];
+          [beta];
+          phi beta craving_smoking stressed WITH
+          phi beta craving_smoking stressed;
+  OUTPUT:
+  TECH1 TECH8 CINTERVAL(HPD);
+
+
+
+*** WARNING in VARIABLE command
+  Note that only the first 8 characters of variable names are used in the output.
+  Shorten variable names to avoid any confusion.
+*** WARNING
+  Data set contains cases with missing on x-variables converted to dependent variables.
+  The autocorrelation of these variables should be included in the model and the variables
+  added to the LAGGED option.  The following converted x-variable(s) have cases with missing:
+
+      STRESSED (850 cases with missing data)
+
+*** WARNING
+  One or more individual-level variables have no variation within a
+  cluster for the following clusters.
+
+     Variable   Cluster IDs with no within-cluster variation
+
+      CRAVING_    2
+
+*** WARNING
+  Data set contains cases with missing on all variables.  Cases that appeared before the first
+  case with observed data and that appeared after the last case with observed data were not
+  included in the analysis.  Number of deleted cases:  100
+   4 WARNING(S) FOUND IN THE INPUT INSTRUCTIONS
+
+
+
+
+DSEM - Stressed predicting Craving (random phi and beta);
+
+SUMMARY OF ANALYSIS
+
+Number of groups                                                 1
+Number of observations                                        6292
+
+Number of dependent variables                                    2
+Number of independent variables                                  1
+Number of continuous latent variables                            2
+
+Observed dependent variables
+
+  Continuous
+   CRAVING_SM  STRESSED
+
+Observed independent variables
+   CRAVING_
+
+Continuous latent variables
+   PHI         BETA
+
+Variables with special functions
+
+  Cluster variable      ID
+
+  Within variables
+   CRAVING_
+
+
+Estimator                                                    BAYES
+Specifications for Bayesian Estimation
+  Point estimate                                            MEDIAN
+  Number of Markov chain Monte Carlo (MCMC) chains               4
+  Random seed for the first chain                                0
+  Starting value information                           UNPERTURBED
+  Algorithm used for Markov chain Monte Carlo           GIBBS(PX1)
+  Convergence criterion                                  0.500D-01
+  Maximum number of iterations                               20000
+  K-th iteration used for thinning                               1
+
+Input data file(s)
+  /Users/seungjukim/R_Coding/Big_Papers/DSEM_Softwares/data_dsem.dat
+Input data format  FREE
+
+
+SUMMARY OF DATA
+
+     Number of clusters                         52
+
+       Size (s)    Cluster ID with Size s
+
+         88        52
+        106        7
+        116        33 9
+        117        8 58
+        119        46 49 18 44
+        120        10 36 47 40 41 53 57 42
+        121        14 23 35 61 64
+        122        2 56 59 60 13 3 65 73 75
+        123        29 4 34
+        124        37 38 45 48 21 16 25 22
+        125        62 63 17 15 20
+        126        12 71 24
+        129        76
+
+
+
+COVARIANCE COVERAGE OF DATA
+
+Minimum covariance coverage value   0.100
+
+     Number of missing data patterns             5
+
+
+     PROPORTION OF DATA PRESENT
+
+
+           Covariance Coverage
+              CRAVING_      STRESSED
+              ________      ________
+ CRAVING_       0.847
+ STRESSED       0.847         0.865
+
+
+
+UNIVARIATE SAMPLE STATISTICS
+
+
+     UNIVARIATE HIGHER-ORDER MOMENT DESCRIPTIVE STATISTICS
+
+         Variable/         Mean/     Skewness/   Minimum/ % with                Percentiles
+        Sample Size      Variance    Kurtosis    Maximum  Min/Max      20%/60%    40%/80%    Median
+
+     CRAVING_SMOKING      45.305       0.080       0.000    7.19%      17.000     30.000     40.000
+            5328.000     855.198      -1.297     100.000    1.82%      61.000     74.000
+     STRESSED             49.443      -0.071       0.000    3.01%      21.000     36.000     55.000
+            5442.000     761.165      -1.225     100.000    2.37%      63.000     76.000
+
+
+THE MODEL ESTIMATION TERMINATED NORMALLY
+
+     USE THE FBITERATIONS OPTION TO INCREASE THE NUMBER OF ITERATIONS BY A FACTOR
+     OF AT LEAST TWO TO CHECK CONVERGENCE AND THAT THE PSR VALUE DOES NOT INCREASE.
+
+
+
+MODEL FIT INFORMATION
+
+Number of Free Parameters                              16
+
+Information Criteria
+
+          Deviance (DIC)                       117933.337
+          Estimated Number of Parameters (pD)    1953.569
+
+
+
+MODEL RESULTS
+
+                                Posterior  One-Tailed         95% C.I.
+                    Estimate       S.D.      P-Value   Lower 2.5%  Upper 2.5%  Significance
+
+Within Level
+
+ Variances
+    STRESSED         546.639      10.432      0.000     526.623     567.543      *
+
+ Residual Variances
+    CRAVING_SM       635.185      12.481      0.000     610.159     659.209      *
+
+Between Level
+
+ PHI      WITH
+    BETA              -0.002       0.005      0.317      -0.012       0.007
+    CRAVING_SM        -0.235       0.416      0.266      -1.125       0.534
+    STRESSED          -0.080       0.409      0.414      -0.895       0.741
+
+ BETA     WITH
+    CRAVING_SM         0.186       0.510      0.344      -0.803       1.223
+    STRESSED          -0.032       0.555      0.477      -1.179       1.038
+
+ CRAVING_ WITH
+    STRESSED          53.542      42.968      0.077     -25.504     143.854
+
+ Means
+    CRAVING_SM        45.327       2.235      0.000      40.977      49.720      *
+    STRESSED          49.438       2.297      0.000      44.752      53.772      *
+    PHI                0.086       0.022      0.000       0.045       0.133      *
+    BETA               0.111       0.029      0.000       0.056       0.168      *
+
+ Variances
+    CRAVING_SM       241.252      58.793      0.000     147.805     365.515      *
+    STRESSED         260.226      62.101      0.000     162.162     393.846      *
+    PHI                0.012       0.005      0.000       0.004       0.024      *
+    BETA               0.026       0.009      0.000       0.012       0.046      *
+
+
+CREDIBILITY INTERVALS OF MODEL RESULTS
+
+                  Lower .5%  Lower 2.5%    Lower 5%    Estimate    Upper 5%  Upper 2.5%   Upper .5%
+
+Within Level
+
+ Variances
+    STRESSED       520.487     526.623     529.932     546.639     564.259     567.543     574.066
+
+ Residual Variances
+    CRAVING_SM     603.615     610.159     615.609     635.185     656.567     659.209     667.587
+
+Between Level
+
+ PHI      WITH
+    BETA            -0.016      -0.012      -0.010      -0.002       0.006       0.007       0.012
+    CRAVING_SM      -1.462      -1.125      -0.913      -0.235       0.424       0.534       0.905
+    STRESSED        -1.256      -0.895      -0.737      -0.080       0.584       0.741       1.049
+
+ BETA     WITH
+    CRAVING_SM      -1.142      -0.803      -0.597       0.186       1.048       1.223       1.768
+    STRESSED        -1.600      -1.179      -0.944      -0.032       0.859       1.038       1.523
+
+ CRAVING_ WITH
+    STRESSED       -58.110     -25.504     -11.453      53.542     127.522     143.854     181.270
+
+ Means
+    CRAVING_SM      39.415      40.977      41.662      45.327      48.979      49.720      51.222
+    STRESSED        43.483      44.752      45.748      49.438      53.268      53.772      55.490
+    PHI              0.026       0.045       0.050       0.086       0.124       0.133       0.143
+    BETA             0.031       0.056       0.065       0.111       0.158       0.168       0.184
+
+ Variances
+    CRAVING_SM     129.040     147.805     159.931     241.252     338.760     365.515     434.043
+    STRESSED       143.405     162.162     173.000     260.226     362.077     393.846     465.587
+    PHI              0.003       0.004       0.005       0.012       0.021       0.024       0.029
+    BETA             0.008       0.012       0.014       0.026       0.042       0.046       0.056
+
+
+TECHNICAL 1 OUTPUT
+
+
+     PARAMETER SPECIFICATION FOR WITHIN
+
+
+           NU
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+                    0             0             0
+
+
+           LAMBDA
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+ CRAVING_           0             0             0
+ STRESSED           0             0             0
+ CRAVING_           0             0             0
+
+
+           THETA
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+ CRAVING_           0
+ STRESSED           0             0
+ CRAVING_           0             0             0
+
+
+           ALPHA
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+                    0             0             0
+
+
+           BETA
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+ CRAVING_           0             0             0
+ STRESSED           0             0             0
+ CRAVING_           0             0             0
+
+
+           PSI
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+ CRAVING_           1
+ STRESSED           0             2
+ CRAVING_           0             0             0
+
+
+     PARAMETER SPECIFICATION FOR BETWEEN
+
+
+           NU
+              CRAVING_      STRESSED
+              ________      ________
+                    0             0
+
+
+           LAMBDA
+              PHI           BETA          CRAVING_      STRESSED
+              ________      ________      ________      ________
+ CRAVING_           0             0             0             0
+ STRESSED           0             0             0             0
+
+
+           THETA
+              CRAVING_      STRESSED
+              ________      ________
+ CRAVING_           0
+ STRESSED           0             0
+
+
+           ALPHA
+              PHI           BETA          CRAVING_      STRESSED
+              ________      ________      ________      ________
+                    3             4             5             6
+
+
+           BETA
+              PHI           BETA          CRAVING_      STRESSED
+              ________      ________      ________      ________
+ PHI                0             0             0             0
+ BETA               0             0             0             0
+ CRAVING_           0             0             0             0
+ STRESSED           0             0             0             0
+
+
+           PSI
+              PHI           BETA          CRAVING_      STRESSED
+              ________      ________      ________      ________
+ PHI                7
+ BETA               8             9
+ CRAVING_          10            11            12
+ STRESSED          13            14            15            16
+
+
+     STARTING VALUES FOR WITHIN
+
+
+           NU
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+                0.000         0.000         0.000
+
+
+           LAMBDA
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+ CRAVING_       1.000         0.000         0.000
+ STRESSED       0.000         1.000         0.000
+ CRAVING_       0.000         0.000         1.000
+
+
+           THETA
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+ CRAVING_       0.000
+ STRESSED       0.000         0.000
+ CRAVING_       0.000         0.000         0.000
+
+
+           ALPHA
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+                0.000         0.000         0.000
+
+
+           BETA
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+ CRAVING_       0.000         0.000         0.000
+ STRESSED       0.000         0.000         0.000
+ CRAVING_       0.000         0.000         0.000
+
+
+           PSI
+              CRAVING_      STRESSED      CRAVING_
+              ________      ________      ________
+ CRAVING_     427.599
+ STRESSED       0.000       380.582
+ CRAVING_       0.000         0.000       427.430
+
+
+     STARTING VALUES FOR BETWEEN
+
+
+           NU
+              CRAVING_      STRESSED
+              ________      ________
+                0.000         0.000
+
+
+           LAMBDA
+              PHI           BETA          CRAVING_      STRESSED
+              ________      ________      ________      ________
+ CRAVING_       0.000         0.000         1.000         0.000
+ STRESSED       0.000         0.000         0.000         1.000
+
+
+           THETA
+              CRAVING_      STRESSED
+              ________      ________
+ CRAVING_       0.000
+ STRESSED       0.000         0.000
+
+
+           ALPHA
+              PHI           BETA          CRAVING_      STRESSED
+              ________      ________      ________      ________
+                0.000         0.000        45.305        49.443
+
+
+           BETA
+              PHI           BETA          CRAVING_      STRESSED
+              ________      ________      ________      ________
+ PHI            0.000         0.000         0.000         0.000
+ BETA           0.000         0.000         0.000         0.000
+ CRAVING_       0.000         0.000         0.000         0.000
+ STRESSED       0.000         0.000         0.000         0.000
+
+
+           PSI
+              PHI           BETA          CRAVING_      STRESSED
+              ________      ________      ________      ________
+ PHI            1.000
+ BETA           0.000         1.000
+ CRAVING_       0.000         0.000       427.599
+ STRESSED       0.000         0.000         0.000       380.582
+
+
+
+     PRIORS FOR ALL PARAMETERS            PRIOR MEAN      PRIOR VARIANCE     PRIOR STD. DEV.
+
+     Parameter 1~IG(-1.000,0.000)          infinity            infinity            infinity
+     Parameter 2~IG(-1.000,0.000)          infinity            infinity            infinity
+     Parameter 3~N(0.000,infinity)           0.0000            infinity            infinity
+     Parameter 4~N(0.000,infinity)           0.0000            infinity            infinity
+     Parameter 5~N(0.000,infinity)           0.0000            infinity            infinity
+     Parameter 6~N(0.000,infinity)           0.0000            infinity            infinity
+     Parameter 7~IW(0.000,-5)              infinity            infinity            infinity
+     Parameter 8~IW(0.000,-5)              infinity            infinity            infinity
+     Parameter 9~IW(0.000,-5)              infinity            infinity            infinity
+     Parameter 10~IW(0.000,-5)             infinity            infinity            infinity
+     Parameter 11~IW(0.000,-5)             infinity            infinity            infinity
+     Parameter 12~IW(0.000,-5)             infinity            infinity            infinity
+     Parameter 13~IW(0.000,-5)             infinity            infinity            infinity
+     Parameter 14~IW(0.000,-5)             infinity            infinity            infinity
+     Parameter 15~IW(0.000,-5)             infinity            infinity            infinity
+     Parameter 16~IW(0.000,-5)             infinity            infinity            infinity
+
+
+TECHNICAL 8 OUTPUT
+
+
+   TECHNICAL 8 OUTPUT FOR BAYES ESTIMATION
+
+     CHAIN    BSEED
+     1        0
+     2        285380
+     3        253358
+     4        93468
+
+                     POTENTIAL       PARAMETER WITH
+     ITERATION    SCALE REDUCTION      HIGHEST PSR
+     100              1.029               5
+     200              1.026               10
+     300              1.012               10
+     400              1.006               3
+     500              1.009               13
+     600              1.012               9
+     700              1.006               13
+     800              1.005               13
+     900              1.003               13
+     1000             1.003               10
+     1100             1.005               9
+     1200             1.004               3
+     1300             1.004               9
+     1400             1.004               10
+     1500             1.003               13
+     1600             1.002               10
+     1700             1.004               3
+     1800             1.003               10
+     1900             1.004               10
+     2000             1.003               10
+     2100             1.002               1
+     2200             1.003               1
+     2300             1.002               1
+     2400             1.002               13
+     2500             1.002               13
+     2600             1.002               13
+     2700             1.001               13
+     2800             1.001               3
+     2900             1.001               12
+     3000             1.001               5
+     3100             1.001               5
+     3200             1.001               13
+     3300             1.001               14
+     3400             1.001               14
+     3500             1.001               14
+     3600             1.001               14
+     3700             1.001               12
+     3800             1.001               12
+     3900             1.001               12
+     4000             1.001               11
+     4100             1.001               11
+     4200             1.001               11
+     4300             1.000               11
+     4400             1.000               4
+     4500             1.001               4
+     4600             1.000               4
+     4700             1.001               11
+     4800             1.000               11
+     4900             1.001               4
+     5000             1.001               14
+     5100             1.001               14
+     5200             1.001               14
+     5300             1.001               11
+     5400             1.001               11
+     5500             1.001               11
+     5600             1.001               11
+     5700             1.002               11
+     5800             1.002               11
+     5900             1.002               11
+     6000             1.002               11
+     6100             1.002               11
+     6200             1.002               11
+     6300             1.002               11
+     6400             1.002               11
+     6500             1.001               11
+     6600             1.001               11
+     6700             1.001               11
+     6800             1.001               11
+     6900             1.001               11
+     7000             1.001               11
+     7100             1.001               11
+     7200             1.001               11
+     7300             1.001               11
+     7400             1.001               11
+     7500             1.001               11
+     7600             1.001               11
+     7700             1.001               11
+     7800             1.001               11
+     7900             1.001               11
+     8000             1.001               11
+     8100             1.001               11
+     8200             1.001               11
+     8300             1.001               13
+     8400             1.000               11
+     8500             1.001               11
+     8600             1.001               11
+     8700             1.000               11
+     8800             1.000               11
+     8900             1.000               13
+     9000             1.000               13
+     9100             1.000               13
+     9200             1.000               13
+     9300             1.000               13
+     9400             1.001               13
+     9500             1.000               13
+     9600             1.000               3
+     9700             1.000               3
+     9800             1.000               3
+     9900             1.000               3
+     10000            1.000               3
+
+
+     Beginning Time:  18:36:14
+        Ending Time:  18:36:46
+       Elapsed Time:  00:00:32
+
+
+
+MUTHEN & MUTHEN
+3463 Stoner Ave.
+Los Angeles, CA  90066
+
+Tel: (310) 391-9971
+Fax: (310) 391-8971
+Web: www.StatModel.com
+Support: Support@StatModel.com
+
+Copyright (c) 1998-2019 Muthen & Muthen

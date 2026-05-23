@@ -1,0 +1,257 @@
+---
+title: "VAR(1) DSEM"
+author: "Seungju Kim"
+format: 
+  html:
+    toc: true
+    toc-depth: 6
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+---
+
+This paper demonstrates how to perform a classic discrete-time `Dynamic Structural Equation Models` (DSEMs) using three statistical programs: `Mplus`, `Blimp`, and `mlts in R`. 
+
+# Preparation
+## Load Packages
+```{r}
+library(pacman)
+p_load(tidyverse, ctsem, haven, openesm, rblimp, MplusAutomation, here, mlts)
+```
+
+## Import Data
+```{r}
+org_data <- get_dataset("0037", metadata_version = "1.1.1", version = "1.0.0") 
+data <- org_data$data
+cite(org_data)
+```
+
+:::callout-note
+We use data by Fisher and Soster on affect and smoking. This is an open dataset accessible through the R package `openesm`.
+
+Our main focus will be to examine if affect predicts smoking.
+:::
+
+## Prep Data
+```{r}
+data <- data %>%
+  group_by(id) %>%
+  arrange(id, day, beep) %>%
+  mutate(time = row_number()) %>%
+  ungroup()
+
+data_dsem <- data %>%
+  group_by(id) %>%
+  arrange(id, day, beep) %>%
+  mutate(time = row_number()) %>%
+  ungroup() %>%
+  # keep only what we need
+  select(id, time, day, beep, craving_smoking, stressed)
+
+
+data_dsem <- data_dsem |> as.data.frame()
+
+## Recode character id to numeric
+data_dsem$id <- data_dsem$id |> as.numeric()
+```
+
+# AR(1) DSEM
+
+# VAR(1) DSEM
+
+## Mplus
+
+### Model Specification
+```{r}
+#| eval: false
+# # Build and run model
+dsem_fit <- mplusModeler(
+  mplusObject(
+    TITLE = "DSEM - Stressed predicting Craving (random phi and beta);",
+
+    VARIABLE = "
+      CLUSTER = id;
+      LAGGED = craving_smoking(1);
+      TINTERVAL = time(1);",
+
+    ANALYSIS = "
+      TYPE = TWOLEVEL RANDOM;
+      ESTIMATOR = BAYES;
+      BITERATIONS = 20000 (10000);
+      CHAINS = 4;
+      PROCESSORS = 4;",
+
+    MODEL = "
+      %WITHIN%
+        phi  | craving_smoking ON craving_smoking&1;
+        beta | craving_smoking ON stressed;
+
+      %BETWEEN%
+        craving_smoking;
+        stressed;
+        [phi];
+        [beta];
+        phi beta craving_smoking stressed WITH
+        phi beta craving_smoking stressed;",
+
+    OUTPUT = "TECH1 TECH8 CINTERVAL(HPD);",
+
+    usevariables = c("id", "time", "craving_smoking", "stressed"),
+    rdata = data_dsem
+  ),
+  dataout  = here("model_objects/data_dsem.dat"),
+  modelout = here("model_objects/dsem_model.inp"),
+  run      = 1L,
+  writeData = "ifmissing",
+  hashfilename = FALSE
+)
+```
+
+### Results
+```{r}
+# Read results
+results <- readModels(here("model_objects/dsem_model.out"), quiet = TRUE)
+
+# Fixed effects: population means of random slopes
+results$parameters$unstandardized %>%
+  filter(paramHeader == "Means",
+         param %in% c("PHI", "BETA")) %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Between-level variances
+results$parameters$unstandardized %>%
+  filter(paramHeader == "Variances") %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Residual variances (within-level)
+results$parameters$unstandardized %>%
+  filter(paramHeader == "Residual.Variances") %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Between-level correlations among random effects
+results$parameters$unstandardized %>%
+  filter(str_detect(paramHeader, "\\.WITH")) %>%
+  select(paramHeader, param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Convergence: PSR values from TECH8
+results$tech8$chain_convergence
+
+# Model summary
+results$summaries
+```
+
+
+## rBlimp
+
+### Model Specification
+```{r}
+#| eval: false
+mymodel <- rblimp(
+    data = data_dsem,
+    clusterid = 'id',
+    timeid = 'time',
+    latent = 'id = stressed_mean_j craving_mean_j phi_j beta_j',
+    model = '
+    level2.models:
+        # by default blimp specifies an intercept
+        #   when you use the @ with a latent variable
+        # Correlate the random effects
+        craving_mean_j phi_j beta_j ~~ craving_mean_j phi_j beta_j;
+    level1.models:
+        stressed ~ 1@stressed_mean_j;
+        craving_smoking ~ 1@craving_mean_j
+            (craving_smoking.lag - craving_mean_j)@phi_j
+            (stressed - stressed_mean_j)@beta_j;',
+    seed = 51823,
+    burn = 10000,
+    iter = 20000
+)
+
+saveRDS(mymodel, here("model_objects/blimp_dsem.Rds"))
+```
+
+### Results
+```{r}
+mymodel <- readRDS(here("model_objects/blimp_dsem.Rds"))
+output(mymodel)
+```
+
+## mlts
+
+### Model Specification (1/2)
+```{r}
+VAR1mod <- mlts_model(
+  q = 2,
+  max_lag = 1,
+  inno_covs_zero = TRUE,
+  is_exogenous = 2 
+)
+```
+
+#### Examime Formula
+```{r}
+#| eval: false
+mlts_model_formula(VAR1mod, file = here("visual/var1_mlts.pdf"))
+```
+
+:::callout-note
+See the PDF file generated in the `visual` folder.
+:::
+
+#### Visualize Model
+```{r}
+mlts_paths(
+  VAR1mod,
+  width = 14,
+  height = 10,
+  fig_margins.x = c(0, 10),
+  fig_margins.y = c(1, 10)
+)
+```
+
+:::callout-tip
+A very nice feature in `mlts` is the ability to visualize your model, which can aid interpretation and specification for applied researchers.
+:::
+
+#### Rescale Data
+
+```{r}
+# Rescale to -3 to 3
+# rescale_to_range <- function(x, new_min = -3, new_max = 3) {
+#   obs_min <- min(x, na.rm = TRUE)
+#   obs_max <- max(x, na.rm = TRUE)
+#   if (obs_min == obs_max) return(rep(0, length(x)))  # handle zero-variance case
+#   (x - obs_min) / (obs_max - obs_min) * (new_max - new_min) + new_min
+# }
+# 
+# data_dsem <- data_dsem %>%
+#   mutate(
+#     craving_scaled = rescale_to_range(craving_smoking),
+#     stressed_scaled = rescale_to_range(stressed)
+#   )
+```
+
+### Results
+```{r}
+#| eval: false
+fit_mlts <- mlts_fit(
+  model   = VAR1mod,
+  data    = data_dsem_clean,
+  id      = "id",
+  ts      = c("craving_smoking", "stressed"),
+  time    = "time",
+  tinterval = 1,
+  iter    = 10000,
+  chains  = 2,
+  cores   = 6
+)
+
+saveRDS(fit_mlts, here("model_objects/mlts_fit.Rds"))
+```
+
+```{r}
+fit_mlts <- readRDS(here("model_objects/mlts_fit.Rds"))
+summary(fit_mlts)
+```
+
+# RDSEM
