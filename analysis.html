@@ -7,8 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Seungju Kim">
+<meta name="author" content="Peter J. Jankowski">
 
-<title>VAR(1) DSEM</title>
+<title>Comparing Dynamic Structural Equation Modeling with Mplus and Blimp: A Tutorial for Applied Researchers</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -3141,7 +3142,7 @@ vertical-align: -.125em;
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">VAR(1) DSEM</h1>
+<h1 class="title">Comparing Dynamic Structural Equation Modeling with Mplus and Blimp: A Tutorial for Applied Researchers</h1>
 </div>
 
 
@@ -3149,9 +3150,10 @@ vertical-align: -.125em;
 <div class="quarto-title-meta">
 
     <div>
-    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-heading">Authors</div>
     <div class="quarto-title-meta-contents">
              <p>Seungju Kim </p>
+             <p>Peter J. Jankowski </p>
           </div>
   </div>
     
@@ -3252,36 +3254,33 @@ Note
 <section id="model-specification" class="level4">
 <h4 class="anchored" data-anchor-id="model-specification">Model Specification</h4>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>ar_1_blimp <span class="ot">&lt;-</span> <span class="fu">rblimp</span>(</span>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>ar_blimp <span class="ot">&lt;-</span> <span class="fu">rblimp</span>(</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> data_dsem,</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">clusterid =</span> <span class="st">&#39;id&#39;</span>,</span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">timeid =</span> <span class="st">&#39;time&#39;</span>,</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">latent =</span> <span class="st">&#39;id = stressed_mean_j craving_mean_j AR CL&#39;</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">latent =</span> <span class="st">&#39;id = stressed_mean craving_mean AR CL&#39;</span>,</span>
 <span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">model =</span> <span class="st">&#39;</span></span>
 <span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="st">    level2.models:</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="st">        # by default blimp specifies an intercept</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="st">        #   when you use the @ with a latent variable</span></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="st">        # Correlate the random effects</span></span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="st">        1 -&gt; stressed_mean_j craving_mean_j AR CL;</span></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="st">        craving_mean_j AR CL ~~ craving_mean_j AR CL;</span></span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="st">    level1.models:</span></span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="st">        stressed ~ 1@stressed_mean_j;</span></span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="st">        craving_smoking ~ 1@craving_mean_j</span></span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="st">        (craving_smoking.lag - craving_mean_j)@AR</span></span>
-<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="st">        (stressed - stressed_mean_j)@CL;&#39;</span>,</span>
-<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">seed =</span> <span class="dv">51823</span>,</span>
-<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">burn =</span> <span class="dv">10000</span>,</span>
-<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">iter =</span> <span class="dv">20000</span></span>
-<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(ar_1_blimp, <span class="fu">here</span>(<span class="st">&quot;model_objects/ar_blimp.Rds&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="st">        1 -&gt; stressed_mean craving_mean AR CL;</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="st">    level1.models:</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="st">        stressed ~ 1@stressed_mean;</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="st">        craving_smoking ~ </span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="st">            1@craving_mean</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="st">            (craving_smoking.lag - craving_mean)@AR</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="st">            (stressed - stressed_mean)@CL;&#39;</span>,</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">seed =</span> <span class="dv">51823</span>,</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">burn =</span> <span class="dv">10000</span>,</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">iter =</span> <span class="dv">50000</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(ar_blimp, <span class="fu">here</span>(<span class="st">&quot;model_objects/ar_blimp.Rds&quot;</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="results" class="level4">
 <h4 class="anchored" data-anchor-id="results">Results</h4>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>ar_1_blimp <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">here</span>(<span class="st">&quot;model_objects/ar_blimp.Rds&quot;</span>))</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">output</span>(ar_1_blimp)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>ar_blimp <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="fu">here</span>(<span class="st">&quot;model_objects/ar_blimp.Rds&quot;</span>))</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">output</span>(ar_blimp)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 ---------------------------------------------------------------------------
@@ -3326,26 +3325,26 @@ BURN-IN POTENTIAL SCALE REDUCTION (PSR) OUTPUT:
         convergence detection across all chains.
 
   Comparing iterations across 4 chains     Highest Rhat   Parameter #  
-                          251 to 500             3.304            47  
-                          501 to 1000            2.809            46  
-                          751 to 1500            2.609            46  
-                         1001 to 2000            2.524            46  
-                         1251 to 2500            2.448            47  
-                         1501 to 3000            2.465            38  
-                         1751 to 3500            2.294            47  
-                         2001 to 4000            2.317            39  
-                         2251 to 4500            2.281            37  
-                         2501 to 5000            2.149            38  
-                         2751 to 5500            2.225            46  
-                         3001 to 6000            2.178            47  
-                         3251 to 6500            2.197            48  
-                         3501 to 7000            2.208            47  
-                         3751 to 7500            2.204            37  
-                         4001 to 8000            2.253            47  
-                         4251 to 8500            2.232            47  
-                         4501 to 9000            2.285            46  
-                         4751 to 9500            2.197            46  
-                         5001 to 10000           2.123            46  
+                          251 to 500             1.050             1  
+                          501 to 1000            1.029             1  
+                          751 to 1500            1.012             1  
+                         1001 to 2000            1.006             1  
+                         1251 to 2500            1.012             1  
+                         1501 to 3000            1.008             1  
+                         1751 to 3500            1.007            26  
+                         2001 to 4000            1.005             1  
+                         2251 to 4500            1.008            26  
+                         2501 to 5000            1.008             1  
+                         2751 to 5500            1.006             1  
+                         3001 to 6000            1.003             1  
+                         3251 to 6500            1.003             1  
+                         3501 to 7000            1.005             1  
+                         3751 to 7500            1.005             1  
+                         4001 to 8000            1.002             1  
+                         4251 to 8500            1.002             1  
+                         4501 to 9000            1.003             1  
+                         4751 to 9500            1.003             1  
+                         5001 to 10000           1.002             1  
 
 
 DATA INFORMATION:
@@ -3356,40 +3355,36 @@ DATA INFORMATION:
   Level-2 Clusters:         52
   Missing Data Info:
 
-                      Pattern #:       1     2     3     4     5     6     7
-                          miss % --------------------------------------------
-          craving_smoking = 15.4       -     -     M     M     M     M     M  
-                 stressed = 13.6       -     -     M     M     -     -     M  
-       craving_smoking.lag1 = 16.2       -     M     -     M     M     M     M  
-            stressed.lag1 = 14.4       -     M     -     M     -     M     -  
-                                 --------------------------------------------
-                                 %  73.4  11.2  10.4   3.0   1.7   0.1   0.1
+                      Pattern #:       1     2     3     4     5
+                          miss % --------------------------------
+          craving_smoking = 15.4       -     -     M     M     M  
+                 stressed = 13.6       -     -     M     M     -  
+       craving_smoking.lag1 = 16.2       -     M     -     M     M  
+                                 --------------------------------
+                                 %  73.4  11.2  10.4   3.1   1.8
 
 
 MODEL INFORMATION:
 
   NUMBER OF PARAMETERS
-    Outcome Models:         14
+    Outcome Models:         10
     Predictor Models:       0
 
   FACTORS
-    Level-2:                stressed_mean craving_mean AR_1 CL_1 AR_2
-                            CL_2
+    Level-2:                stressed_mean craving_mean AR CL
 
   MODELS
 
    level2.models:
-    [1]  AR_1 ~ Intercept
-    [2]  AR_2 ~ Intercept
-    [3]  CL_1 ~ Intercept
-    [4]  CL_2 ~ Intercept
-    [5]  craving_mean ~ Intercept
-    [6]  stressed_mean ~ Intercept
+    [1]  AR ~ Intercept
+    [2]  CL ~ Intercept
+    [3]  craving_mean ~ Intercept
+    [4]  stressed_mean ~ Intercept
 
    level1.models:
-    [7]  craving_smoking ~ craving_mean@1 (craving_smoking.lag1-craving_mean)*AR_2@1 
-                 (stressed-stressed_mean)*CL_2@1
-    [8]  stressed ~ stressed_mean@1 (stressed.lag1-stressed_mean)*AR_1@1 (craving_smoking-craving_mean)*CL_1@1
+    [5]  craving_smoking ~ craving_mean@1 (craving_smoking.lag1-craving_mean)*AR@1 
+                 (stressed-stressed_mean)*CL@1
+    [6]  stressed ~ stressed_mean@1
 
 
  WARNING MESSAGES:
@@ -3408,26 +3403,24 @@ MODEL FIT:
   INFORMATION CRITERIA
 
     Conditional Likelihood
-      DIC2                  117074.505
-      WAIC                  119030.032
+      DIC2                  117389.622
+      WAIC                  118189.919
 
 
 IMPUTED DATA SUMMARIES:
 
-  NOTE: Imputed data summaries are averaged across 20000 data sets.
+  NOTE: Imputed data summaries are averaged across 50000 data sets.
 
 
 Variables                              Mean     StdDev        25%        50%        75%        Min        Max 
                                 ------------------------------------------------------------------------------
 
-  AR_1                                0.208      0.171      0.039      0.210      0.339     -0.062      0.591 
-  AR_2                                0.025      0.045     -0.005      0.017      0.054     -0.068      0.136 
-  CL_1                                0.228      0.403     -0.010      0.148      0.366     -0.978      1.151 
-  CL_2                                0.322      0.544     -0.001      0.195      0.491     -0.720      2.496 
-  craving_mean                       45.633     14.232     35.327     45.051     56.348     13.709     73.264 
-  stressed_mean                      48.906     14.741     39.053     48.225     59.293     17.721     84.732 
-  craving_smoking                    46.501    471.933     19.957     42.051     71.927  -6791.232   6311.457 
-  stressed                           48.405    456.172     24.001     53.719     72.897  -7190.433   6628.896 
+  AR                                  0.086      0.094      0.020      0.084      0.151     -0.116      0.303 
+  CL                                  0.109      0.142      0.012      0.112      0.207     -0.219      0.420 
+  craving_mean                       45.289     14.108     35.299     45.542     54.376     13.466     72.957 
+  stressed_mean                      49.449     14.668     40.589     47.935     60.404     18.112     85.503 
+  craving_smoking                    45.121     29.268     20.631     41.224     70.211    -50.167    137.387 
+  stressed                           49.533     27.491     25.021     53.517     71.996    -34.272    135.755 
 
                                 ------------------------------------------------------------------------------
 
@@ -3435,7 +3428,7 @@ Variables                              Mean     StdDev        25%        50%    
 
 CORRELATIONS AMONG RESIDUALS:
 
-  Summaries based on 20000 iterations using 4 chains.
+  Summaries based on 50000 iterations using 4 chains.
   NOTE: Estimate column based on posterior median.
 
 
@@ -3444,7 +3437,7 @@ CORRELATIONS AMONG RESIDUALS:
 Correlations                       Estimate     StdDev       2.5%      97.5%      ChiSq     PValue      N_Eff 
                                 ------------------------------------------------------------------------------
 
-  craving_smoking, stressed          -0.183      0.041     -0.281     -0.135     22.513      0.000      5.235 
+  craving_smoking, stressed           0.000      0.018     -0.035      0.035      0.000      0.991  34875.216 
 
                                 ------------------------------------------------------------------------------
 
@@ -3455,21 +3448,12 @@ Correlations                       Estimate     StdDev       2.5%      97.5%    
 Correlations                       Estimate     StdDev       2.5%      97.5%      ChiSq     PValue      N_Eff 
                                 ------------------------------------------------------------------------------
 
-  AR_1, AR_2                          0.219      0.214     -0.244      0.576      0.901      0.343     76.578 
-  AR_1, CL_1                         -0.399      0.168     -0.700     -0.057      5.571      0.018     12.594 
-  AR_1, CL_2                         -0.454      0.146     -0.697     -0.132      9.238      0.002     28.618 
-  AR_1, craving_mean                 -0.019      0.182     -0.371      0.337      0.010      0.921   1704.114 
-  AR_1, stressed_mean                 0.082      0.184     -0.289      0.423      0.179      0.673    240.915 
-  AR_2, CL_1                         -0.164      0.204     -0.520      0.275      0.562      0.453     31.532 
-  AR_2, CL_2                         -0.180      0.206     -0.523      0.273      0.635      0.426     76.233 
-  AR_2, craving_mean                 -0.016      0.201     -0.400      0.381      0.005      0.945    940.790 
-  AR_2, stressed_mean                -0.023      0.200     -0.403      0.366      0.013      0.909   2609.046 
-  CL_1, CL_2                          0.769      0.077      0.580      0.879     97.780      0.000    128.578 
-  CL_1, craving_mean                 -0.028      0.189     -0.394      0.337      0.023      0.880     68.223 
-  CL_1, stressed_mean                 0.060      0.184     -0.301      0.411      0.105      0.746    731.523 
-  CL_2, craving_mean                 -0.005      0.193     -0.377      0.369      0.001      0.979    621.765 
-  CL_2, stressed_mean                 0.050      0.192     -0.329      0.423      0.070      0.791     98.404 
-  craving_mean, stressed_mean         0.253      0.159     -0.088      0.534      2.391      0.122   3244.590 
+  AR, CL                             -0.038      0.188     -0.394      0.333      0.036      0.850  46371.612 
+  AR, craving_mean                   -0.060      0.184     -0.408      0.303      0.099      0.752  44070.719 
+  AR, stressed_mean                  -0.027      0.180     -0.372      0.329      0.020      0.888  46363.563 
+  CL, craving_mean                    0.047      0.173     -0.294      0.382      0.074      0.786  45063.869 
+  CL, stressed_mean                  -0.007      0.177     -0.352      0.339      0.001      0.970  45539.010 
+  craving_mean, stressed_mean         0.201      0.148     -0.107      0.473      1.756      0.185  41531.582 
 
                                 ------------------------------------------------------------------------------
 
@@ -3477,23 +3461,23 @@ Correlations                       Estimate     StdDev       2.5%      97.5%    
 
 OUTCOME MODEL ESTIMATES:
 
-  Summaries based on 20000 iterations using 4 chains.
+  Summaries based on 50000 iterations using 4 chains.
   NOTE: Estimate column based on posterior median.
 
   level2.models block:
 
-Latent Variable:   AR_1       
+Latent Variable:   AR         
 
 Parameters                         Estimate     StdDev       2.5%      97.5%      ChiSq     PValue      N_Eff 
                                 ------------------------------------------------------------------------------
 Variances:                      
-  Residual Var.                       0.031      0.008      0.020      0.051        ---        ---   7277.998 
+  Residual Var.                       0.009      0.004      0.004      0.020        ---        ---   6010.040 
 
 Coefficients:                   
-  Intercept                           0.209      0.029      0.150      0.266     50.227      0.000     45.725 
+  Intercept                           0.086      0.021      0.045      0.127     17.128      0.000  11721.375 
 
 Standard Deviations:            
-  Residual SD                         0.176      0.022      0.140      0.225        ---        ---   7157.231 
+  Residual SD                         0.097      0.020      0.059      0.140        ---        ---   5361.435 
 
 Proportion Variance Explained   
   by Coefficients                     0.000      0.000      0.000      0.000        ---        ---        nan 
@@ -3503,60 +3487,18 @@ Proportion Variance Explained
 
 
 
-Latent Variable:   AR_2       
+Latent Variable:   CL         
 
 Parameters                         Estimate     StdDev       2.5%      97.5%      ChiSq     PValue      N_Eff 
                                 ------------------------------------------------------------------------------
 Variances:                      
-  Residual Var.                       0.003      0.003      0.000      0.011        ---        ---     23.907 
+  Residual Var.                       0.021      0.008      0.010      0.040        ---        ---  10219.862 
 
 Coefficients:                   
-  Intercept                           0.024      0.024     -0.005      0.072      1.108      0.293     16.833 
+  Intercept                           0.108      0.027      0.057      0.162     16.498      0.000  19070.181 
 
 Standard Deviations:            
-  Residual SD                         0.051      0.034      0.003      0.107        ---        ---     17.446 
-
-Proportion Variance Explained   
-  by Coefficients                     0.000      0.000      0.000      0.000        ---        ---        nan 
-  by Residual Variation               1.000      0.000      1.000      1.000        ---        ---        nan 
-
-                                ------------------------------------------------------------------------------
-
-
-
-Latent Variable:   CL_1       
-
-Parameters                         Estimate     StdDev       2.5%      97.5%      ChiSq     PValue      N_Eff 
-                                ------------------------------------------------------------------------------
-Variances:                      
-  Residual Var.                       0.171      0.039      0.115      0.266        ---        ---     73.005 
-
-Coefficients:                   
-  Intercept                           0.225      0.071      0.094      0.372     10.240      0.001     12.604 
-
-Standard Deviations:            
-  Residual SD                         0.414      0.045      0.339      0.516        ---        ---     70.087 
-
-Proportion Variance Explained   
-  by Coefficients                     0.000      0.000      0.000      0.000        ---        ---        nan 
-  by Residual Variation               1.000      0.000      1.000      1.000        ---        ---        nan 
-
-                                ------------------------------------------------------------------------------
-
-
-
-Latent Variable:   CL_2       
-
-Parameters                         Estimate     StdDev       2.5%      97.5%      ChiSq     PValue      N_Eff 
-                                ------------------------------------------------------------------------------
-Variances:                      
-  Residual Var.                       0.311      0.072      0.208      0.489        ---        ---     68.460 
-
-Coefficients:                   
-  Intercept                           0.320      0.088      0.155      0.499     13.518      0.000     22.258 
-
-Standard Deviations:            
-  Residual SD                         0.558      0.062      0.456      0.699        ---        ---     64.116 
+  Residual SD                         0.146      0.025      0.101      0.200        ---        ---   9584.086 
 
 Proportion Variance Explained   
   by Coefficients                     0.000      0.000      0.000      0.000        ---        ---        nan 
@@ -3571,13 +3513,13 @@ Latent Variable:   craving_mean
 Parameters                         Estimate     StdDev       2.5%      97.5%      ChiSq     PValue      N_Eff 
                                 ------------------------------------------------------------------------------
 Variances:                      
-  Residual Var.                     213.331     52.149    139.891    342.014        ---        ---    215.153 
+  Residual Var.                     209.909     47.758    141.517    327.601        ---        ---  25095.560 
 
 Coefficients:                   
-  Intercept                          45.644      2.246     41.224     50.016    412.783      0.000   1491.974 
+  Intercept                          45.282      2.099     41.137     49.424    465.698      0.000  24582.926 
 
 Standard Deviations:            
-  Residual SD                        14.606      1.709     11.828     18.494        ---        ---    207.849 
+  Residual SD                        14.488      1.584     11.896     18.100        ---        ---  24982.288 
 
 Proportion Variance Explained   
   by Coefficients                     0.000      0.000      0.000      0.000        ---        ---        nan 
@@ -3592,13 +3534,13 @@ Latent Variable:   stressed_mean
 Parameters                         Estimate     StdDev       2.5%      97.5%      ChiSq     PValue      N_Eff 
                                 ------------------------------------------------------------------------------
 Variances:                      
-  Residual Var.                     229.129     54.848    151.094    363.553        ---        ---    956.527 
+  Residual Var.                     227.347     50.495    154.659    351.328        ---        ---  44950.985 
 
 Coefficients:                   
-  Intercept                          48.906      2.343     44.327     53.535    435.552      0.000    245.222 
+  Intercept                          49.466      2.147     45.223     53.670    530.688      0.000  47264.780 
 
 Standard Deviations:            
-  Residual SD                        15.137      1.737     12.292     19.067        ---        ---    954.386 
+  Residual SD                        15.078      1.612     12.436     18.744        ---        ---  44768.202 
 
 Proportion Variance Explained   
   by Coefficients                     0.000      0.000      0.000      0.000        ---        ---        nan 
@@ -3614,25 +3556,25 @@ Outcome Variable:  craving_smoking
 Parameters                         Estimate     StdDev       2.5%      97.5%      ChiSq     PValue      N_Eff 
                                 ------------------------------------------------------------------------------
 Variances:                      
-  Residual Var.                     648.011     13.742    621.957    675.605        ---        ---     32.091 
+  Residual Var.                     635.266     12.488    611.558    660.378        ---        ---  33743.665 
 
 Coefficients:                   
   craving_mean                      @ 1.000        ---        ---        ---        ---        ---        --- 
   (craving_smoking.lag1-            @ 1.000        ---        ---        ---        ---        ---        --- 
-    craving_mean)*AR_2          
-  (stressed-stressed_mean)*CL_2     @ 1.000        ---        ---        ---        ---        ---        --- 
+    craving_mean)*AR            
+  (stressed-stressed_mean)*CL       @ 1.000        ---        ---        ---        ---        ---        --- 
 
 Standard Deviations:            
-  Residual SD                        25.456      0.270     24.939     25.992        ---        ---     32.143 
+  Residual SD                        25.204      0.248     24.730     25.698        ---        ---  33757.942 
 
 Standardized Coefficients:      
-  (craving_smoking.lag1-              0.009      0.004      0.004      0.020      5.238      0.022     25.863 
-    craving_mean)*AR_2          
-  (stressed-stressed_mean)*CL_2       0.998      0.000      0.998      0.999  8.585e+06      0.000      5.555 
+  (craving_smoking.lag1-              0.133      0.017      0.099      0.165     62.193      0.000   5825.091 
+    craving_mean)*AR            
+  (stressed-stressed_mean)*CL         0.154      0.015      0.124      0.183    102.913      0.000   9880.374 
 
 Proportion Variance Explained   
-  by Coefficients                     0.997      0.001      0.996      0.998        ---        ---      4.871 
-  by Residual Variation               0.003      0.001      0.002      0.004        ---        ---      4.871 
+  by Coefficients                     0.044      0.006      0.032      0.057        ---        ---   8610.588 
+  by Residual Variation               0.956      0.006      0.943      0.968        ---        ---   8610.588 
 
                                 ------------------------------------------------------------------------------
 
@@ -3643,27 +3585,17 @@ Outcome Variable:  stressed
 Parameters                         Estimate     StdDev       2.5%      97.5%      ChiSq     PValue      N_Eff 
                                 ------------------------------------------------------------------------------
 Variances:                      
-  Residual Var.                     497.222     11.034    476.747    519.893        ---        ---     16.689 
+  Residual Var.                     546.711     10.581    526.286    567.939        ---        ---  37114.782 
 
 Coefficients:                   
   stressed_mean                     @ 1.000        ---        ---        ---        ---        ---        --- 
-  (stressed.lag1-stressed_mean)     @ 1.000        ---        ---        ---        ---        ---        --- 
-    *AR_1                       
-  (craving_smoking-craving_mean     @ 1.000        ---        ---        ---        ---        ---        --- 
-    )*CL_1                      
 
 Standard Deviations:            
-  Residual SD                        22.298      0.247     21.835     22.801        ---        ---     16.727 
-
-Standardized Coefficients:      
-  (stressed.lag1-stressed_mean)       0.017      0.002      0.014      0.021     97.315      0.000      6.645 
-    *AR_1                       
-  (craving_smoking-craving_mean       0.999      0.000      0.998      0.999  6.847e+06      0.000      4.556 
-    )*CL_1                      
+  Residual SD                        23.382      0.226     22.941     23.831        ---        ---  37116.080 
 
 Proportion Variance Explained   
-  by Coefficients                     0.998      0.000      0.997      0.998        ---        ---      4.758 
-  by Residual Variation               0.002      0.000      0.002      0.003        ---        ---      4.758 
+  by Coefficients                     0.000      0.000      0.000      0.000        ---        ---        nan 
+  by Residual Variation               1.000      0.000      1.000      1.000        ---        ---        nan 
 
                                 ------------------------------------------------------------------------------</code></pre>
 </div>

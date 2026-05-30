@@ -1,6 +1,9 @@
 ---
-title: "VAR(1) DSEM"
-author: "Seungju Kim"
+title: "Comparing Dynamic Structural Equation Modeling with Mplus and Blimp: 
+A Tutorial for Applied Researchers"
+author: 
+  - "Seungju Kim"
+  - "Peter J. Jankowski"
 format: 
   html:
     toc: true
