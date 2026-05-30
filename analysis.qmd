@@ -4,7 +4,7 @@ A Tutorial for Applied Researchers"
 author: 
   - "Seungju Kim"
   - "Peter J. Jankowski"
-format: 
+format: yeah
   html:
     toc: true
     toc-depth: 6
@@ -61,11 +61,9 @@ data_dsem$id <- data_dsem$id |> as.numeric()
 ```
 
 
+# Empirical Example
 
-# DSEM
-
-## AR(1) 
-
+## DSEM AR(1) 
 ### Blimp
 #### Model Specification
 ```{r}
@@ -101,7 +99,7 @@ output(ar_blimp)
 
 
 
-## VAR(1)
+## DSEM VAR(1)
 
 ### Mplus
 
@@ -222,9 +220,7 @@ var_blimp <- readRDS(here("model_objects/blimp_dsem.Rds"))
 output(var_blimp)
 ```
 
-# RDSEM
-
-## AR(1)
+## RDSEM AR(1)
 
 ### Blimp
 #### Model Specification
@@ -269,7 +265,7 @@ ar_rdsem_blimp <- readRDS(here("model_objects/ar_rdsem_blimp.Rds"))
 output(ar_rdsem_blimp)
 ```
 
-## VAR(1)
+## RDSEM VAR(1)
 
 ### Blimp
 #### Model Specification
@@ -323,3 +319,719 @@ saveRDS(var_rdsem_blimp, here("model_objects/var_rdsem_blimp.Rds"))
 var_rdsem_blimp <- readRDS(here("model_objects/var_rdsem_blimp.Rds"))
 output(var_rdsem_blimp)
 ```
+
+# Simulation Study
+
+y_it = α_i + φ_i*(y_i,t-1 - α_i) + β_i*(x_it - μx_i) + u_it
+x_it = μx_i + v_it
+
+## Create Dataset DSEM AR(1)
+
+### Population Specifications
+```{r}
+# ============================================
+# SHARED PARAMETERS (all four simulations)
+# ============================================
+craving_mu       <- 45    # craving person mean
+stressed_mu      <- 50    # stressed person mean
+craving_between  <- 230   # between-person var in craving mean
+stressed_between <- 225   # between-person var in stressed mean
+craving_resid    <- 635   # within-person residual var (craving)
+stressed_resid   <- 545   # within-person residual var (stressed)
+
+# ============================================
+# SIMULATION 1: AR(1) DSEM
+# ============================================
+AR_mean  <- 0.30   # rounded up from 0.086 for moderate effect
+CL_mean  <- 0.10   # rounded from 0.108
+AR_var   <- 0.01
+CL_var   <- 0.02
+
+# ============================================
+# SIMULATION 2: VAR(1) DSEM
+# Empirical: AR_1=0.262, AR_2=0.069, CL_1=0.021, CL_2=0.074
+# ============================================
+AR_1_mean  <- 0.30   # stressed AR (rounded up for moderate)
+AR_2_mean  <- 0.10   # craving AR
+CL_1_mean  <- 0.05   # craving -> stressed (rounded from 0.021)
+CL_2_mean  <- 0.10   # stressed -> craving (rounded from 0.074)
+AR_1_var   <- 0.02
+AR_2_var   <- 0.01
+CL_1_var   <- 0.002
+CL_2_var   <- 0.001
+stressed_resid_var2 <- 485  # from VAR(1) RDSEM output
+
+# ============================================
+# SIMULATION 3: AR(1) RDSEM
+# Adds linear trend to craving
+# Empirical trend: 0.017, rounded to moderate
+# ============================================
+AR_mean_r    <- 0.30
+CL_mean_r    <- 0.10
+AR_var_r     <- 0.01
+CL_var_r     <- 0.02
+trend_mean   <- 0.10   # clear moderate trend per occasion
+trend_var    <- 0.01
+
+# ============================================
+# SIMULATION 4: VAR(1) RDSEM
+# Adds linear trend to both craving and stressed
+# ============================================
+AR_1_mean_r       <- 0.30
+AR_2_mean_r       <- 0.10
+CL_1_mean_r       <- 0.05
+CL_2_mean_r       <- 0.10
+craving_trend_mean  <- 0.10
+stressed_trend_mean <- 0.10
+craving_trend_var   <- 0.01
+stressed_trend_var  <- 0.01
+```
+
+
+### Generate Data
+
+#### AR DSEM
+```{r}
+# ============================================
+# FUNCTION 1: AR(1) DSEM
+# craving ~ lag(craving) + stressed
+# stressed is purely exogenous (no dynamics)
+# ============================================
+
+generate_ar1_dsem <- function(N, T, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  
+  # Population parameters
+  AR_mean  <- 0.30
+  CL_mean  <- 0.10
+  AR_var   <- 0.01
+  CL_var   <- 0.02
+  
+  # Draw person-specific parameters
+  AR_i            <- rnorm(N, AR_mean, sqrt(AR_var))
+  CL_i            <- rnorm(N, CL_mean, sqrt(CL_var))
+  craving_mean_i  <- rnorm(N, craving_mu,  sqrt(craving_between))
+  stressed_mean_i <- rnorm(N, stressed_mu, sqrt(stressed_between))
+  
+  data_list <- vector("list", N)
+  
+  for (i in 1:N) {
+    craving  <- numeric(T)
+    stressed <- numeric(T)
+    
+    # Initialize
+    craving[1]  <- craving_mean_i[i] + 
+                   rnorm(1, 0, sqrt(craving_resid))
+    stressed[1] <- stressed_mean_i[i] + 
+                   rnorm(1, 0, sqrt(stressed_resid))
+    
+    for (t in 2:T) {
+      # stressed is purely exogenous — no AR structure
+      stressed[t] <- stressed_mean_i[i] + 
+                     rnorm(1, 0, sqrt(stressed_resid))
+      
+      # craving has AR and cross-lagged from stressed
+      craving[t]  <- craving_mean_i[i] +
+                     AR_i[i] * (craving[t-1]  - craving_mean_i[i]) +
+                     CL_i[i] * (stressed[t]   - stressed_mean_i[i]) +
+                     rnorm(1, 0, sqrt(craving_resid))
+    }
+    
+    data_list[[i]] <- data.frame(
+      id              = i,
+      time            = 1:T,
+      craving_smoking = craving,
+      stressed        = stressed
+    )
+  }
+  
+  do.call(rbind, data_list)
+}
+```
+
+#### VAR DSEM
+```{r}
+# ============================================
+# FUNCTION 2: VAR(1) DSEM
+# craving ~ lag(craving) + lag(stressed)
+# stressed ~ lag(stressed) + lag(craving)
+# both outcomes have dynamics
+# ============================================
+
+generate_var1_dsem <- function(N, T, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  
+  # Population parameters
+  AR_1_mean <- 0.30   # stressed AR
+  AR_2_mean <- 0.10   # craving AR
+  CL_1_mean <- 0.05   # craving -> stressed
+  CL_2_mean <- 0.10   # stressed -> craving
+  AR_1_var  <- 0.02
+  AR_2_var  <- 0.01
+  CL_1_var  <- 0.002
+  CL_2_var  <- 0.001
+  stressed_resid_var <- 485
+  
+  # Draw person-specific parameters
+  AR_1_i          <- rnorm(N, AR_1_mean, sqrt(AR_1_var))
+  AR_2_i          <- rnorm(N, AR_2_mean, sqrt(AR_2_var))
+  CL_1_i          <- rnorm(N, CL_1_mean, sqrt(CL_1_var))
+  CL_2_i          <- rnorm(N, CL_2_mean, sqrt(CL_2_var))
+  craving_mean_i  <- rnorm(N, craving_mu,  sqrt(craving_between))
+  stressed_mean_i <- rnorm(N, stressed_mu, sqrt(stressed_between))
+  
+  data_list <- vector("list", N)
+  
+  for (i in 1:N) {
+    craving  <- numeric(T)
+    stressed <- numeric(T)
+    
+    # Initialize at person means
+    craving[1]  <- craving_mean_i[i] + 
+                   rnorm(1, 0, sqrt(craving_resid))
+    stressed[1] <- stressed_mean_i[i] + 
+                   rnorm(1, 0, sqrt(stressed_resid_var))
+    
+    for (t in 2:T) {
+      # Both variables now have AR and cross-lagged structure
+      # Using lagged values for both (true VAR structure)
+      craving[t]  <- craving_mean_i[i] +
+                     AR_2_i[i] * (craving[t-1]  - craving_mean_i[i]) +
+                     CL_2_i[i] * (stressed[t-1] - stressed_mean_i[i]) +
+                     rnorm(1, 0, sqrt(craving_resid))
+      
+      stressed[t] <- stressed_mean_i[i] +
+                     AR_1_i[i] * (stressed[t-1] - stressed_mean_i[i]) +
+                     CL_1_i[i] * (craving[t-1]  - craving_mean_i[i]) +
+                     rnorm(1, 0, sqrt(stressed_resid_var))
+    }
+    
+    data_list[[i]] <- data.frame(
+      id              = i,
+      time            = 1:T,
+      craving_smoking = craving,
+      stressed        = stressed
+    )
+  }
+  
+  do.call(rbind, data_list)
+}
+```
+
+#### AR RSEM
+```{r}
+# ============================================
+# FUNCTION 3: AR(1) RDSEM
+# Same as AR(1) DSEM but craving has a 
+# linear time trend
+# ============================================
+
+generate_ar1_rdsem <- function(N, T, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  
+  # Population parameters
+  AR_mean      <- 0.30
+  CL_mean      <- 0.10
+  AR_var       <- 0.01
+  CL_var       <- 0.02
+  trend_mean   <- 0.10   # clear moderate trend per occasion
+  trend_var    <- 0.01
+  
+  # Draw person-specific parameters
+  AR_i            <- rnorm(N, AR_mean,    sqrt(AR_var))
+  CL_i            <- rnorm(N, CL_mean,    sqrt(CL_var))
+  trend_i         <- rnorm(N, trend_mean, sqrt(trend_var))
+  craving_mean_i  <- rnorm(N, craving_mu,  sqrt(craving_between))
+  stressed_mean_i <- rnorm(N, stressed_mu, sqrt(stressed_between))
+  
+  data_list <- vector("list", N)
+  
+  for (i in 1:N) {
+    craving  <- numeric(T)
+    stressed <- numeric(T)
+    
+    # Initialize
+    craving[1]  <- craving_mean_i[i] + 
+                   trend_i[i] * (1 - 1) +   # trend starts at 0 at t=1
+                   rnorm(1, 0, sqrt(craving_resid))
+    stressed[1] <- stressed_mean_i[i] + 
+                   rnorm(1, 0, sqrt(stressed_resid))
+    
+    for (t in 2:T) {
+      # stressed remains purely exogenous
+      stressed[t] <- stressed_mean_i[i] + 
+                     rnorm(1, 0, sqrt(stressed_resid))
+      
+      # predicted value of craving at t-1 (for detrending the lag)
+      lag_hat <- craving_mean_i[i] + trend_i[i] * (t - 2)
+      lag_res <- craving[t-1] - lag_hat
+      
+      # craving has AR (detrended), cross-lagged, and trend
+      craving[t]  <- craving_mean_i[i] +
+                     trend_i[i] * (t - 1) +
+                     AR_i[i] * lag_res +
+                     CL_i[i] * (stressed[t] - stressed_mean_i[i]) +
+                     rnorm(1, 0, sqrt(craving_resid))
+    }
+    
+    data_list[[i]] <- data.frame(
+      id              = i,
+      time            = 1:T,
+      craving_smoking = craving,
+      stressed        = stressed
+    )
+  }
+  
+  do.call(rbind, data_list)
+}
+```
+
+#### VAR RDSEM
+```{r}
+# ============================================
+# FUNCTION 4: VAR(1) RDSEM
+# Both craving and stressed have AR, 
+# cross-lagged effects, AND linear time trends
+# ============================================
+
+generate_var1_rdsem <- function(N, T, seed = NULL) {
+  if (!is.null(seed)) set.seed(seed)
+  
+  # Population parameters
+  AR_1_mean           <- 0.30
+  AR_2_mean           <- 0.10
+  CL_1_mean           <- 0.05
+  CL_2_mean           <- 0.10
+  AR_1_var            <- 0.02
+  AR_2_var            <- 0.01
+  CL_1_var            <- 0.002
+  CL_2_var            <- 0.001
+  craving_trend_mean  <- 0.10
+  stressed_trend_mean <- 0.10
+  craving_trend_var   <- 0.01
+  stressed_trend_var  <- 0.01
+  stressed_resid_var  <- 485
+  
+  # Draw person-specific parameters
+  AR_1_i               <- rnorm(N, AR_1_mean, sqrt(AR_1_var))
+  AR_2_i               <- rnorm(N, AR_2_mean, sqrt(AR_2_var))
+  CL_1_i               <- rnorm(N, CL_1_mean, sqrt(CL_1_var))
+  CL_2_i               <- rnorm(N, CL_2_mean, sqrt(CL_2_var))
+  craving_trend_i      <- rnorm(N, craving_trend_mean,  sqrt(craving_trend_var))
+  stressed_trend_i     <- rnorm(N, stressed_trend_mean, sqrt(stressed_trend_var))
+  craving_mean_i       <- rnorm(N, craving_mu,  sqrt(craving_between))
+  stressed_mean_i      <- rnorm(N, stressed_mu, sqrt(stressed_between))
+  
+  data_list <- vector("list", N)
+  
+  for (i in 1:N) {
+    craving  <- numeric(T)
+    stressed <- numeric(T)
+    
+    # Initialize at t=1 (trend term is 0 at t=1)
+    craving[1]  <- craving_mean_i[i] + 
+                   rnorm(1, 0, sqrt(craving_resid))
+    stressed[1] <- stressed_mean_i[i] + 
+                   rnorm(1, 0, sqrt(stressed_resid_var))
+    
+    for (t in 2:T) {
+      # Detrended lagged residuals for both variables
+      craving_lag_hat  <- craving_mean_i[i]  + craving_trend_i[i]  * (t - 2)
+      stressed_lag_hat <- stressed_mean_i[i] + stressed_trend_i[i] * (t - 2)
+      
+      craving_lag_res  <- craving[t-1]  - craving_lag_hat
+      stressed_lag_res <- stressed[t-1] - stressed_lag_hat
+      
+      # craving: AR (detrended) + CL from stressed (detrended) + trend
+      craving[t]  <- craving_mean_i[i] +
+                     craving_trend_i[i]  * (t - 1) +
+                     AR_2_i[i] * craving_lag_res +
+                     CL_2_i[i] * stressed_lag_res +
+                     rnorm(1, 0, sqrt(craving_resid))
+      
+      # stressed: AR (detrended) + CL from craving (detrended) + trend
+      stressed[t] <- stressed_mean_i[i] +
+                     stressed_trend_i[i] * (t - 1) +
+                     AR_1_i[i] * stressed_lag_res +
+                     CL_1_i[i] * craving_lag_res +
+                     rnorm(1, 0, sqrt(stressed_resid_var))
+    }
+    
+    data_list[[i]] <- data.frame(
+      id              = i,
+      time            = 1:T,
+      craving_smoking = craving,
+      stressed        = stressed
+    )
+  }
+  
+  do.call(rbind, data_list)
+}
+```
+
+### Test
+```{r}
+# ============================================
+# SANITY CHECKS
+# ============================================
+
+set.seed(123)
+test1 <- generate_ar1_dsem(N = 100, T = 50)
+test2 <- generate_var1_dsem(N = 100, T = 50)
+test3 <- generate_ar1_rdsem(N = 100, T = 50)
+test4 <- generate_var1_rdsem(N = 100, T = 50)
+
+# ---- CHECK 1: Person-level means ----
+# Should be centered around craving=45, stressed=50
+
+check_means <- function(dat, label) {
+  dat %>%
+    group_by(id) %>%
+    summarise(
+      m_craving  = mean(craving_smoking),
+      m_stressed = mean(stressed)
+    ) %>%
+    summarise(
+      across(everything(), mean)
+    ) %>%
+    mutate(model = label)
+}
+
+bind_rows(
+  check_means(test1, "AR1 DSEM"),
+  check_means(test2, "VAR1 DSEM"),
+  check_means(test3, "AR1 RDSEM"),
+  check_means(test4, "VAR1 RDSEM")
+)
+
+# ---- CHECK 2: Within-person variances ----
+# craving residual should be ~635, stressed ~545
+
+check_vars <- function(dat, label) {
+  dat %>%
+    group_by(id) %>%
+    summarise(
+      var_craving  = var(craving_smoking),
+      var_stressed = var(stressed)
+    ) %>%
+    summarise(
+      across(everything(), mean)
+    ) %>%
+    mutate(model = label)
+}
+
+bind_rows(
+  check_vars(test1, "AR1 DSEM"),
+  check_vars(test2, "VAR1 DSEM"),
+  check_vars(test3, "AR1 RDSEM"),
+  check_vars(test4, "VAR1 RDSEM")
+)
+
+# ---- CHECK 3: Trend is visible in RDSEM data ----
+# Should show clear upward slope in craving over time
+
+p1 <- test3 %>%
+  group_by(time) %>%
+  summarise(m_craving = mean(craving_smoking)) %>%
+  ggplot(aes(time, m_craving)) +
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "AR(1) RDSEM: Mean craving over time",
+       subtitle = "Should show upward linear trend (slope ~0.10)") +
+  theme_minimal()
+
+p2 <- test4 %>%
+  group_by(time) %>%
+  summarise(
+    m_craving  = mean(craving_smoking),
+    m_stressed = mean(stressed)
+  ) %>%
+  pivot_longer(-time) %>%
+  ggplot(aes(time, value, color = name)) +
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "VAR(1) RDSEM: Mean trajectories over time",
+       subtitle = "Both should show upward trend (slope ~0.10)") +
+  theme_minimal()
+
+p1
+p2
+
+# ---- CHECK 4: No trend in DSEM data ----
+# Craving should be flat over time
+
+test1 %>%
+  group_by(time) %>%
+  summarise(m_craving = mean(craving_smoking)) %>%
+  ggplot(aes(time, m_craving)) +
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "AR(1) DSEM: Mean craving over time",
+       subtitle = "Should be flat — no trend") +
+  theme_minimal()
+
+
+# Check 4b: VAR(1) DSEM should also be flat
+test2 %>%
+  group_by(time) %>%
+  summarise(
+    m_craving  = mean(craving_smoking),
+    m_stressed = mean(stressed)
+  ) %>%
+  pivot_longer(-time) %>%
+  ggplot(aes(time, value, color = name)) +
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "VAR(1) DSEM: Mean trajectories over time",
+       subtitle = "Both should be flat — no trend") +
+  theme_minimal()
+
+# ---- CHECK 5: Verify AR structure ----
+# Correlation between craving[t] and craving[t-1] should be ~0.30
+
+check_ar <- function(dat, label) {
+  dat %>%
+    group_by(id) %>%
+    arrange(time) %>%
+    summarise(
+      ar_cor = cor(
+        craving_smoking[-n()],           # craving t
+        craving_smoking[-1],             # craving t+1
+        use = "complete.obs"
+      )
+    ) %>%
+    summarise(mean_ar = mean(ar_cor)) %>%
+    mutate(model = label)
+}
+
+bind_rows(
+  check_ar(test1, "AR1 DSEM"),
+  check_ar(test2, "VAR1 DSEM"),
+  check_ar(test3, "AR1 RDSEM"),
+  check_ar(test4, "VAR1 RDSEM")
+)
+```
+
+## Blimp
+### True Values
+```{r}
+# ============================================
+# TRUTH VALUES FOR EACH SIMULATION
+# ============================================
+
+truth_ar1_dsem <- list(
+  AR_mean  = 0.30,
+  CL_mean  = 0.10,
+  AR_var   = 0.01,
+  CL_var   = 0.02
+)
+
+truth_var1_dsem <- list(
+  AR_1_mean = 0.30,
+  AR_2_mean = 0.10,
+  CL_1_mean = 0.05,
+  CL_2_mean = 0.10,
+  AR_1_var  = 0.02,
+  AR_2_var  = 0.01,
+  CL_1_var  = 0.002,
+  CL_2_var  = 0.001
+)
+
+truth_ar1_rdsem <- list(
+  AR_mean    = 0.30,
+  CL_mean    = 0.10,
+  trend_mean = 0.10,
+  AR_var     = 0.01,
+  CL_var     = 0.02,
+  trend_var  = 0.01
+)
+
+truth_var1_rdsem <- list(
+  AR_1_mean          = 0.30,
+  AR_2_mean          = 0.10,
+  CL_1_mean          = 0.05,
+  CL_2_mean          = 0.10,
+  craving_trend_mean = 0.10,
+  stressed_trend_mean = 0.10,
+  AR_1_var           = 0.02,
+  AR_2_var           = 0.01,
+  CL_1_var           = 0.002,
+  CL_2_var           = 0.001,
+  craving_trend_var  = 0.01,
+  stressed_trend_var = 0.01
+)
+```
+
+### Extraction
+```{r}
+# ============================================
+# BLIMP EXTRACTION HELPERS
+# ============================================
+# These pull the posterior median and 95% CI
+# from the rblimp estimates table
+
+extract_blimp_ar1_dsem <- function(fit) {
+  est <- fit@estimates
+  
+  # Helper to grab median and CI for a parameter by name
+  get_param <- function(pattern) {
+    row <- est[grep(pattern, est$Parameter, ignore.case = TRUE), ]
+    if (nrow(row) == 0) return(c(est = NA, lo = NA, hi = NA))
+    c(est = row$Estimate[1], lo = row$`2.5%`[1], hi = row$`97.5%`[1])
+  }
+  
+  tibble(
+    AR_mean  = get_param("AR.*Intercept|Intercept.*AR")[["est"]],
+    AR_mean_lo = get_param("AR.*Intercept|Intercept.*AR")[["lo"]],
+    AR_mean_hi = get_param("AR.*Intercept|Intercept.*AR")[["hi"]],
+    
+    CL_mean  = get_param("CL.*Intercept|Intercept.*CL")[["est"]],
+    CL_mean_lo = get_param("CL.*Intercept|Intercept.*CL")[["lo"]],
+    CL_mean_hi = get_param("CL.*Intercept|Intercept.*CL")[["hi"]],
+    
+    AR_var   = get_param("AR.*Residual Var|Residual Var.*AR")[["est"]],
+    CL_var   = get_param("CL.*Residual Var|Residual Var.*CL")[["est"]]
+  )
+}
+
+extract_blimp_var1_dsem <- function(fit) {
+  est <- fit@estimates
+  
+  get_param <- function(pattern) {
+    row <- est[grep(pattern, est$Parameter, ignore.case = TRUE), ]
+    if (nrow(row) == 0) return(c(est = NA, lo = NA, hi = NA))
+    c(est = row$Estimate[1], lo = row$`2.5%`[1], hi = row$`97.5%`[1])
+  }
+  
+  tibble(
+    AR_1_mean    = get_param("AR_1.*Intercept")[["est"]],
+    AR_1_mean_lo = get_param("AR_1.*Intercept")[["lo"]],
+    AR_1_mean_hi = get_param("AR_1.*Intercept")[["hi"]],
+    
+    AR_2_mean    = get_param("AR_2.*Intercept")[["est"]],
+    AR_2_mean_lo = get_param("AR_2.*Intercept")[["lo"]],
+    AR_2_mean_hi = get_param("AR_2.*Intercept")[["hi"]],
+    
+    CL_1_mean    = get_param("CL_1.*Intercept")[["est"]],
+    CL_1_mean_lo = get_param("CL_1.*Intercept")[["lo"]],
+    CL_1_mean_hi = get_param("CL_1.*Intercept")[["hi"]],
+    
+    CL_2_mean    = get_param("CL_2.*Intercept")[["est"]],
+    CL_2_mean_lo = get_param("CL_2.*Intercept")[["lo"]],
+    CL_2_mean_hi = get_param("CL_2.*Intercept")[["hi"]],
+    
+    AR_1_var  = get_param("AR_1.*Residual Var")[["est"]],
+    AR_2_var  = get_param("AR_2.*Residual Var")[["est"]],
+    CL_1_var  = get_param("CL_1.*Residual Var")[["est"]],
+    CL_2_var  = get_param("CL_2.*Residual Var")[["est"]]
+  )
+}
+
+extract_blimp_ar1_rdsem <- function(fit) {
+  est <- fit@estimates
+  
+  get_param <- function(pattern) {
+    row <- est[grep(pattern, est$Parameter, ignore.case = TRUE), ]
+    if (nrow(row) == 0) return(c(est = NA, lo = NA, hi = NA))
+    c(est = row$Estimate[1], lo = row$`2.5%`[1], hi = row$`97.5%`[1])
+  }
+  
+  tibble(
+    AR_mean      = get_param("AR.*Intercept")[["est"]],
+    AR_mean_lo   = get_param("AR.*Intercept")[["lo"]],
+    AR_mean_hi   = get_param("AR.*Intercept")[["hi"]],
+    
+    CL_mean      = get_param("CL.*Intercept")[["est"]],
+    CL_mean_lo   = get_param("CL.*Intercept")[["lo"]],
+    CL_mean_hi   = get_param("CL.*Intercept")[["hi"]],
+    
+    trend_mean   = get_param("craving_trend.*Intercept")[["est"]],
+    trend_mean_lo = get_param("craving_trend.*Intercept")[["lo"]],
+    trend_mean_hi = get_param("craving_trend.*Intercept")[["hi"]],
+    
+    AR_var    = get_param("AR.*Residual Var")[["est"]],
+    CL_var    = get_param("CL.*Residual Var")[["est"]],
+    trend_var = get_param("craving_trend.*Residual Var")[["est"]]
+  )
+}
+
+extract_blimp_var1_rdsem <- function(fit) {
+  est <- fit@estimates
+  
+  get_param <- function(pattern) {
+    row <- est[grep(pattern, est$Parameter, ignore.case = TRUE), ]
+    if (nrow(row) == 0) return(c(est = NA, lo = NA, hi = NA))
+    c(est = row$Estimate[1], lo = row$`2.5%`[1], hi = row$`97.5%`[1])
+  }
+  
+  tibble(
+    AR_1_mean           = get_param("AR_1.*Intercept")[["est"]],
+    AR_1_mean_lo        = get_param("AR_1.*Intercept")[["lo"]],
+    AR_1_mean_hi        = get_param("AR_1.*Intercept")[["hi"]],
+    
+    AR_2_mean           = get_param("AR_2.*Intercept")[["est"]],
+    AR_2_mean_lo        = get_param("AR_2.*Intercept")[["lo"]],
+    AR_2_mean_hi        = get_param("AR_2.*Intercept")[["hi"]],
+    
+    CL_1_mean           = get_param("CL_1.*Intercept")[["est"]],
+    CL_1_mean_lo        = get_param("CL_1.*Intercept")[["lo"]],
+    CL_1_mean_hi        = get_param("CL_1.*Intercept")[["hi"]],
+    
+    CL_2_mean           = get_param("CL_2.*Intercept")[["est"]],
+    CL_2_mean_lo        = get_param("CL_2.*Intercept")[["lo"]],
+    CL_2_mean_hi        = get_param("CL_2.*Intercept")[["hi"]],
+    
+    craving_trend_mean    = get_param("craving_trend.*Intercept")[["est"]],
+    craving_trend_mean_lo = get_param("craving_trend.*Intercept")[["lo"]],
+    craving_trend_mean_hi = get_param("craving_trend.*Intercept")[["hi"]],
+    
+    stressed_trend_mean    = get_param("stressed_trend.*Intercept")[["est"]],
+    stressed_trend_mean_lo = get_param("stressed_trend.*Intercept")[["lo"]],
+    stressed_trend_mean_hi = get_param("stressed_trend.*Intercept")[["hi"]],
+    
+    AR_1_var           = get_param("AR_1.*Residual Var")[["est"]],
+    AR_2_var           = get_param("AR_2.*Residual Var")[["est"]],
+    CL_1_var           = get_param("CL_1.*Residual Var")[["est"]],
+    CL_2_var           = get_param("CL_2.*Residual Var")[["est"]],
+    craving_trend_var  = get_param("craving_trend.*Residual Var")[["est"]],
+    stressed_trend_var = get_param("stressed_trend.*Residual Var")[["est"]]
+  )
+}
+```
+
+
+### Results
+```{r}
+pacman::p_load(keyring)
+source(here::here("simulation_run.R"))
+
+results_sim1 <- run_simulation_blimp_parallel(sim_num = 1, 
+                                              N_vec = c(50, 100, 200), 
+                                              T_vec = c(30, 50), 
+                                              n_reps = 50, 
+                                              burn = 2000, 
+                                              iter = 5000)
+
+results_sim2 <- run_simulation_blimp_parallel(sim_num = 2, 
+                                              N_vec = c(50, 100, 200), 
+                                              T_vec = c(30, 50), 
+                                              n_reps = 500, 
+                                              burn = 2000, 
+                                              iter = 5000)
+results_sim3 <- run_simulation_blimp_parallel(sim_num = 3, 
+                                              N_vec = c(50, 100, 200), 
+                                              T_vec = c(30, 50), 
+                                              n_reps = 500, 
+                                              burn = 2000, 
+                                              iter = 5000)
+results_sim4 <- run_simulation_blimp_parallel(sim_num = 4, 
+                                              N_vec = c(50, 100, 200), 
+                                              T_vec = c(30, 50), 
+                                              n_reps = 500, 
+                                              burn = 2000, 
+                                              iter = 5000)
+```
+
+
+
+
