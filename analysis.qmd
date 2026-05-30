@@ -10,18 +10,20 @@ editor_options:
   chunk_output_type: console
 ---
 
-This paper demonstrates how to perform a classic discrete-time `Dynamic Structural Equation Models` (DSEMs) using three statistical programs: `Mplus`, `Blimp`, and `mlts in R`. 
+This paper demonstrates how to perform a classic discrete-time `Dynamic Structural Equation Models` (DSEMs) using three statistical programs: `Mplus` and `Blimp`. 
 
 # Preparation
 ## Load Packages
 ```{r}
 library(pacman)
-p_load(tidyverse, ctsem, haven, openesm, rblimp, MplusAutomation, here, mlts)
+p_load(tidyverse, haven, openesm, rblimp, MplusAutomation, here)
 ```
 
 ## Import Data
 ```{r}
-org_data <- get_dataset("0037", metadata_version = "1.1.1", version = "1.0.0") 
+# org_data <- get_dataset("0037", metadata_version = "1.1.1", version = "1.0.0") 
+# saveRDS(org_data, here("data/data.Rds"))
+org_data <- readRDS(here("data/data.Rds"))
 data <- org_data$data
 cite(org_data)
 ```
@@ -55,13 +57,52 @@ data_dsem <- data_dsem |> as.data.frame()
 data_dsem$id <- data_dsem$id |> as.numeric()
 ```
 
-# AR(1) DSEM
 
-# VAR(1) DSEM
 
-## Mplus
+# DSEM
 
-### Model Specification
+## AR(1) 
+
+### Blimp
+#### Model Specification
+```{r}
+#| eval: false
+ar_blimp <- rblimp(
+    data = data_dsem,
+    clusterid = 'id',
+    timeid = 'time',
+    latent = 'id = stressed_mean craving_mean AR CL',
+    model = '
+    level2.models:
+        1 -> stressed_mean craving_mean AR CL;
+    level1.models:
+        stressed ~ 1@stressed_mean;
+        craving_smoking ~ 
+            1@craving_mean
+            (craving_smoking.lag - craving_mean)@AR
+            (stressed - stressed_mean)@CL;',
+    seed = 51823,
+    burn = 10000,
+    iter = 50000
+)
+
+saveRDS(ar_blimp, here("model_objects/ar_blimp.Rds"))
+```
+
+#### Results
+```{r}
+ar_blimp <- readRDS(here("model_objects/ar_blimp.Rds"))
+output(ar_blimp)
+```
+
+
+
+
+## VAR(1)
+
+### Mplus
+
+#### Model Specification
 ```{r}
 #| eval: false
 # # Build and run model
@@ -107,7 +148,7 @@ dsem_fit <- mplusModeler(
 )
 ```
 
-### Results
+#### Results
 ```{r}
 # Read results
 results <- readModels(here("model_objects/dsem_model.out"), quiet = TRUE)
@@ -141,117 +182,141 @@ results$summaries
 ```
 
 
-## rBlimp
+### Blimp
 
-### Model Specification
+#### Model Specification
 ```{r}
 #| eval: false
-mymodel <- rblimp(
+var_blimp <- rblimp(
     data = data_dsem,
     clusterid = 'id',
     timeid = 'time',
-    latent = 'id = stressed_mean_j craving_mean_j phi_j beta_j',
+    latent = 'id = stressed_mean craving_mean AR_1 CL_1 AR_2 CL_2',
     model = '
     level2.models:
-        # by default blimp specifies an intercept
-        #   when you use the @ with a latent variable
-        # Correlate the random effects
-        craving_mean_j phi_j beta_j ~~ craving_mean_j phi_j beta_j;
+        1 -> stressed_mean craving_mean AR_1 CL_1 AR_2 CL_2;
     level1.models:
-        stressed ~ 1@stressed_mean_j;
-        craving_smoking ~ 1@craving_mean_j
-            (craving_smoking.lag - craving_mean_j)@phi_j
-            (stressed - stressed_mean_j)@beta_j;',
+        stressed ~ 
+            1@stressed_mean
+            (stressed.lag - stressed_mean)@AR_1
+            (craving_smoking - craving_mean)@CL_1
+            ;
+        craving_smoking ~ 
+            1@craving_mean
+            (craving_smoking.lag - craving_mean)@AR_2
+            (stressed - stressed_mean)@CL_2;',
     seed = 51823,
     burn = 10000,
     iter = 20000
 )
 
-saveRDS(mymodel, here("model_objects/blimp_dsem.Rds"))
+saveRDS(var_blimp, here("model_objects/ar_blimp.Rds"))
 ```
 
-### Results
+#### Results
 ```{r}
-mymodel <- readRDS(here("model_objects/blimp_dsem.Rds"))
-output(mymodel)
-```
-
-## mlts
-
-### Model Specification (1/2)
-```{r}
-VAR1mod <- mlts_model(
-  q = 2,
-  max_lag = 1,
-  inno_covs_zero = TRUE,
-  is_exogenous = 2 
-)
-```
-
-#### Examime Formula
-```{r}
-#| eval: false
-mlts_model_formula(VAR1mod, file = here("visual/var1_mlts.pdf"))
-```
-
-:::callout-note
-See the PDF file generated in the `visual` folder.
-:::
-
-#### Visualize Model
-```{r}
-mlts_paths(
-  VAR1mod,
-  width = 14,
-  height = 10,
-  fig_margins.x = c(0, 10),
-  fig_margins.y = c(1, 10)
-)
-```
-
-:::callout-tip
-A very nice feature in `mlts` is the ability to visualize your model, which can aid interpretation and specification for applied researchers.
-:::
-
-#### Rescale Data
-
-```{r}
-# Rescale to -3 to 3
-# rescale_to_range <- function(x, new_min = -3, new_max = 3) {
-#   obs_min <- min(x, na.rm = TRUE)
-#   obs_max <- max(x, na.rm = TRUE)
-#   if (obs_min == obs_max) return(rep(0, length(x)))  # handle zero-variance case
-#   (x - obs_min) / (obs_max - obs_min) * (new_max - new_min) + new_min
-# }
-# 
-# data_dsem <- data_dsem %>%
-#   mutate(
-#     craving_scaled = rescale_to_range(craving_smoking),
-#     stressed_scaled = rescale_to_range(stressed)
-#   )
-```
-
-### Results
-```{r}
-#| eval: false
-fit_mlts <- mlts_fit(
-  model   = VAR1mod,
-  data    = data_dsem_clean,
-  id      = "id",
-  ts      = c("craving_smoking", "stressed"),
-  time    = "time",
-  tinterval = 1,
-  iter    = 10000,
-  chains  = 2,
-  cores   = 6
-)
-
-saveRDS(fit_mlts, here("model_objects/mlts_fit.Rds"))
-```
-
-```{r}
-fit_mlts <- readRDS(here("model_objects/mlts_fit.Rds"))
-summary(fit_mlts)
+var_blimp <- readRDS(here("model_objects/blimp_dsem.Rds"))
+output(var_blimp)
 ```
 
 # RDSEM
+
+## AR(1)
+
+### Blimp
+#### Model Specification
+```{r}
+#| eval: false
+ar_1_rdsem_blimp <- rblimp(
+    data = data_dsem,
+    clusterid = 'id',
+    timeid = 'time',
+    latent = 'id = stressed_mean craving_mean craving_trend AR CL',
+    model = '
+    ## SPECIFY VARIABLES ##
+    # here we create a lag variable + time trend
+    lag_hat = craving_mean + (time - 1)*craving_trend;
+    
+    # here we create the lag_res which calculates change from the 
+    # prior time point after takign into account time trend
+    lag_res = ifelse(time <= 1, 0, craving_smoking.lag - lag_hat);
+    
+    level2.models:
+        1 -> stressed_mean craving_mean AR CL craving_trend;
+    
+    level1.models:
+        stressed ~ 1@stressed_mean;
+        craving_smoking ~ 
+            1@craving_mean
+            lag_res@AR
+            (stressed - stressed_mean)@CL
+            time@craving_trend
+    ',
+    seed = 51823,
+    burn = 10000,
+    iter = 50000
+)
+
+saveRDS(ar_rdsem_blimp, here("model_objects/ar_rdsem_blimp.Rds"))
+```
+
+#### Results
+```{r}
+ar_rdsem_blimp <- readRDS(here("model_objects/ar_rdsem_blimp.Rds"))
+output(ar_rdsem_blimp)
+```
+
+## VAR(1)
+
+### Blimp
+#### Model Specification
+```{r}
+#| eval: false
+var_rdsem_blimp <- rblimp(
+    data = data_dsem,
+    clusterid = 'id',
+    timeid = 'time',
+    latent = 'id = craving_mean stressed_mean 
+              CL_1 AR_1 CL_2 AR_2
+              craving_trend stressed_trend',
+    model = '
+    ## DETRENDED LAGS FOR CRAVING ##
+    craving_lag_hat = craving_mean + (time - 1)*craving_trend;
+    craving_lag_res = ifelse(time <= 1, 0, 
+                        craving_smoking.lag - craving_lag_hat);
+    
+    ## DETRENDED LAGS FOR STRESSED ##
+    stressed_lag_hat = stressed_mean + (time - 1)*stressed_trend;
+    stressed_lag_res = ifelse(time <= 1, 0, 
+                        stressed.lag - stressed_lag_hat);
+    
+    level2.models:
+        1 -> craving_mean stressed_mean 
+             CL_1 AR_1 CL_2 AR_2
+             craving_trend stressed_trend;
+    
+    level1.models:
+        stressed ~ 
+            1@stressed_mean
+            craving_lag_res@CL_1
+            stressed_lag_res@AR_1
+            time@stressed_trend;
+        
+        craving_smoking ~ 
+            1@craving_mean
+            craving_lag_res@AR_2
+            stressed_lag_res@CL_2
+            time@craving_trend;',
+    seed = 51823,
+    burn = 10000,
+    iter = 50000
+)
+
+saveRDS(var_rdsem_blimp, here("model_objects/var_rdsem_blimp.Rds"))
+```
+
+#### Results
+```{r}
+var_rdsem_blimp <- readRDS(here("model_objects/var_rdsem_blimp.Rds"))
+output(var_rdsem_blimp)
+```
