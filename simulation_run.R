@@ -11,7 +11,10 @@ library(here)
 library(progressr)   # progress with ETA
 library(progress)    # needed by handler_progress
 
-plan(multisession, workers = 3)   # 3 workers × 4 Blimp chains = 12 cores
+# Set workers in your script AFTER sourcing this file, e.g.:
+#   plan(sequential)               # single-threaded (for testing)
+#   plan(multisession, workers = 8) # parallel (32-core machine: use 8)
+# Rule of thumb: workers = floor(physical_cores / 4) since Blimp uses 4 chains
 
 # ── Progress handler: shows bar + % + ETA + current message ──────────────────
 handlers(handler_progress(
@@ -30,20 +33,20 @@ run_simulation_blimp_parallel <- function(
     iter     = 5000,
     save_dir = here("simulation_results")
 ) {
-
+  
   if (!dir.exists(save_dir)) dir.create(save_dir, recursive = TRUE)
-
+  
   gen_fn <- switch(sim_num,
-    `1` = generate_ar1_dsem,
-    `2` = generate_var1_dsem,
-    `3` = generate_ar1_rdsem,
-    `4` = generate_var1_rdsem
+                   `1` = generate_ar1_dsem,
+                   `2` = generate_var1_dsem,
+                   `3` = generate_ar1_rdsem,
+                   `4` = generate_var1_rdsem
   )
-
+  
   model_syntax <- switch(sim_num,
-    `1` = list(
-      latent = 'id = stressed_mean craving_mean AR CL',
-      model  = '
+                         `1` = list(
+                           latent = 'id = stressed_mean craving_mean AR CL',
+                           model  = '
         level2.models:
           1 -> stressed_mean craving_mean AR CL;
         level1.models:
@@ -52,10 +55,10 @@ run_simulation_blimp_parallel <- function(
             1@craving_mean
             (craving_smoking.lag - craving_mean)@AR
             (stressed - stressed_mean)@CL;'
-    ),
-    `2` = list(
-      latent = 'id = stressed_mean craving_mean AR_1 CL_1 AR_2 CL_2',
-      model  = '
+                         ),
+                         `2` = list(
+                           latent = 'id = stressed_mean craving_mean AR_1 CL_1 AR_2 CL_2',
+                           model  = '
         level2.models:
           1 -> stressed_mean craving_mean AR_1 CL_1 AR_2 CL_2;
         level1.models:
@@ -67,10 +70,10 @@ run_simulation_blimp_parallel <- function(
             1@craving_mean
             (craving_smoking.lag - craving_mean)@AR_2
             (stressed.lag - stressed_mean)@CL_2;'
-    ),
-    `3` = list(
-      latent = 'id = stressed_mean craving_mean craving_trend AR CL',
-      model  = '
+                         ),
+                         `3` = list(
+                           latent = 'id = stressed_mean craving_mean craving_trend AR CL',
+                           model  = '
         lag_hat = craving_mean + (time - 1)*craving_trend;
         lag_res = ifelse(time <= 1, 0, craving_smoking.lag - lag_hat);
         level2.models:
@@ -82,12 +85,12 @@ run_simulation_blimp_parallel <- function(
             lag_res@AR
             (stressed - stressed_mean)@CL
             time@craving_trend;'
-    ),
-    `4` = list(
-      latent = 'id = craving_mean stressed_mean
+                         ),
+                         `4` = list(
+                           latent = 'id = craving_mean stressed_mean
                 CL_1 AR_1 CL_2 AR_2
                 craving_trend stressed_trend',
-      model  = '
+                           model  = '
         craving_lag_hat = craving_mean + (time - 1)*craving_trend;
         craving_lag_res = ifelse(time <= 1, 0,
                             craving_smoking.lag - craving_lag_hat);
@@ -109,9 +112,9 @@ run_simulation_blimp_parallel <- function(
             craving_lag_res@AR_2
             stressed_lag_res@CL_2
             time@craving_trend;'
-    )
+                         )
   )
-
+  
   extract_inline <- function(fit, sim_num) {
     est <- fit@estimates
     get_param <- function(pattern) {
@@ -193,7 +196,7 @@ run_simulation_blimp_parallel <- function(
       )
     }
   }
-
+  
   # Localize everything for furrr workers
   local_gen_fn  <- gen_fn
   local_extract <- extract_inline
@@ -201,35 +204,35 @@ run_simulation_blimp_parallel <- function(
   local_burn    <- burn
   local_iter    <- iter
   local_sim     <- sim_num
-
+  
   all_results  <- list()
   sim_start    <- proc.time()
-
+  
   n_conditions <- length(N_vec) * length(T_vec)
   condition_i  <- 0L
-
+  
   for (N in N_vec) {
     for (T in T_vec) {
-
+      
       condition_i <- condition_i + 1L
       cond_label  <- sprintf("Sim %d | N=%d T=%d [%d/%d]",
                              sim_num, N, T, condition_i, n_conditions)
-
+      
       cat("\n========================================\n")
       cat(cond_label, "\n")
       cat(sprintf("Running %d replications...\n", n_reps))
       cat("========================================\n")
-
+      
       # ── progressr: one bar per condition, step per completed rep ────────────
       with_progress({
         p <- progressor(steps = n_reps)
-
+        
         condition_results <- furrr::future_map_dfr(
           1:n_reps,
           function(rep) {
-
+            
             dat <- local_gen_fn(N = N, T = T, seed = rep * 1000 + local_sim)
-
+            
             fit_time <- system.time({
               fit <- tryCatch({
                 rblimp::rblimp(
@@ -248,14 +251,14 @@ run_simulation_blimp_parallel <- function(
                 return(NULL)
               })
             })
-
+            
             # Signal progress — this travels back from worker to main process
             p(sprintf("rep %d | %.0fs", rep, fit_time["elapsed"]))
-
+            
             if (is.null(fit)) {
               return(tibble::tibble(rep = rep, converged = FALSE, time_sec = NA_real_))
             }
-
+            
             estimates <- tryCatch(
               local_extract(fit, local_sim),
               error = function(e) {
@@ -263,14 +266,14 @@ run_simulation_blimp_parallel <- function(
                 return(NULL)
               }
             )
-
+            
             if (is.null(estimates)) {
               return(tibble::tibble(
                 rep = rep, converged = FALSE,
                 time_sec = as.numeric(fit_time["elapsed"])
               ))
             }
-
+            
             estimates %>%
               dplyr::mutate(
                 rep       = rep,
@@ -283,25 +286,25 @@ run_simulation_blimp_parallel <- function(
         ) %>%
           dplyr::mutate(sim = sim_num, N = N, T = T)
       })  # end with_progress
-
+      
       all_results[[paste0("N", N, "_T", T)]] <- condition_results
-
+      
       saveRDS(
         condition_results,
         here::here(save_dir,
-             sprintf("sim%d_N%d_T%d_blimp.Rds", sim_num, N, T))
+                   sprintf("sim%d_N%d_T%d_blimp.Rds", sim_num, N, T))
       )
-
+      
       n_conv     <- sum(condition_results$converged, na.rm = TRUE)
       mean_t     <- mean(condition_results$time_sec, na.rm = TRUE)
       min_t      <- min(condition_results$time_sec,  na.rm = TRUE)
       max_t      <- max(condition_results$time_sec,  na.rm = TRUE)
-
+      
       cat(sprintf("\n  Saved: sim%d_N%d_T%d_blimp.Rds\n", sim_num, N, T))
       cat(sprintf("  Converged: %d / %d\n", n_conv, n_reps))
       cat(sprintf("  Rep timing — Mean: %.1f sec | Min: %.1f | Max: %.1f\n",
                   mean_t, min_t, max_t))
-
+      
       # Rough projection for remaining conditions
       elapsed_so_far <- (proc.time() - sim_start)["elapsed"]
       secs_per_cond  <- elapsed_so_far / condition_i
@@ -313,25 +316,25 @@ run_simulation_blimp_parallel <- function(
       }
     }
   }
-
+  
   full_results <- dplyr::bind_rows(all_results)
-
+  
   saveRDS(
     full_results,
     here::here(save_dir, sprintf("sim%d_full_blimp.Rds", sim_num))
   )
-
+  
   total_elapsed <- (proc.time() - sim_start)["elapsed"]
   n_total_conv  <- sum(full_results$converged, na.rm = TRUE)
   n_total_reps  <- nrow(full_results)
-
+  
   cat(sprintf("\n========================================\n"))
   cat(sprintf("Simulation %d complete in %.1f min.\n", sim_num, total_elapsed / 60))
   cat(sprintf("Total converged: %d / %d\n", n_total_conv, n_total_reps))
   cat(sprintf("Overall mean time per rep: %.1f sec\n",
               mean(full_results$time_sec, na.rm = TRUE)))
   cat(sprintf("========================================\n"))
-
+  
   return(full_results)
 }
 
@@ -345,8 +348,4 @@ run_simulation_blimp_parallel <- function(
 # results_sim4 <- run_simulation_blimp_parallel(sim_num = 4, N_vec = c(50, 100, 200), T_vec = c(30, 50), n_reps = 500, burn = 2000, iter = 5000)
 
 # ── Quick test (3 reps, low iter) ─────────────────────────────────────────────
-# results_sim1 <- run_simulation_blimp_parallel(sim_num = 1, N_vec = c(50), T_vec = c(30), n_reps = 3, burn = 200,
-#   iter     = 100,
-#   save_dir = here("simulation_results/test"),
-#   email    = FALSE
-# )
+# results_sim1 <- run_simulation_blimp_parallel(sim_num = 1, N_vec = c(50), T_vec = c(30), n_reps = 3, burn = 200, iter = 100, save_dir = here("simulation_results/test"))
