@@ -1,0 +1,66 @@
+Mplus VERSION 9.1 (Mac)
+MUTHEN & MUTHEN
+06/13/2026  10:57 PM
+
+INPUT INSTRUCTIONS
+
+  TITLE:
+  AR(1) DSEM - Mplus;
+  DATA:
+  FILE = "/Users/seungjukim/R_Coding/Big_Papers/DSEM_Softwares/model_objects/
+  data_dsem.dat";
+  VARIABLE:
+  NAMES = id time craving_smoking stressed;
+   MISSING=.;
+
+        CLUSTER = id;
+        LAGGED = craving_smoking(1) stressed(1);
+        TINTERVAL = time(1);
+  DEFINE:
+
+        CENTER stressed (GRANDMEAN);
+  ANALYSIS:
+
+        TYPE = TWOLEVEL RANDOM;
+        ESTIMATOR = BAYES;
+        BITERATIONS = 50000 (10000);
+        CHAINS = 4;
+        PROCESSORS = 4;
+  MODEL:
+
+        %WITHIN%
+          s_AR | craving_smoking ON craving_smoking&1;
+          s_CL | craving_smoking ON stressed&1;
+
+        %BETWEEN%
+          craving_smoking stressed;
+          [s_AR s_CL];
+          s_AR s_CL craving_smoking stressed WITH
+          s_AR s_CL craving_smoking stressed;
+  OUTPUT:
+  TECH1 TECH8 CINTERVAL(HPD) STDYX;
+
+
+
+*** WARNING in VARIABLE command
+  Note that only the first 8 characters of variable names are used in the output.
+  Shorten variable names to avoid any confusion.
+*** WARNING
+  One or more individual-level variables have no variation within a
+  cluster for the following clusters.
+
+     Variable   Cluster IDs with no within-cluster variation
+
+      CRAVING_    2
+
+*** WARNING
+  Data set contains cases with missing on all variables.
+  These cases were not included in the analysis.
+  Number of cases with missing on all variables:  950
+   3 WARNING(S) FOUND IN THE INPUT INSTRUCTIONS
+
+
+
+
+AR(1) DSEM - Mplus;
+

@@ -1,0 +1,37 @@
+TITLE:
+VAR(1) DSEM - Mplus;
+DATA:
+FILE = "/Users/seungjukim/R_Coding/Big_Papers/DSEM_Softwares/model_objects/
+data_dsem.dat"; 
+VARIABLE:
+NAMES = id time craving_smoking stressed; 
+ MISSING=.;
+ 
+      CLUSTER = id;
+      LAGGED = craving_smoking(1) stressed(1);
+      TINTERVAL = time(1);
+DEFINE:
+
+      CENTER stressed (GRANDMEAN);
+ANALYSIS:
+
+      TYPE = TWOLEVEL RANDOM;
+      ESTIMATOR = BAYES;
+      BITERATIONS = 50000 (10000);
+      CHAINS = 4;
+      PROCESSORS = 4;
+MODEL:
+
+      %WITHIN%
+        s_AR1 | stressed        ON stressed&1;
+        s_CL1 | stressed        ON craving_smoking&1;
+        s_AR2 | craving_smoking ON craving_smoking&1;
+        s_CL2 | craving_smoking ON stressed&1;
+
+      %BETWEEN%
+        craving_smoking stressed;
+        [s_AR1 s_CL1 s_AR2 s_CL2];
+        s_AR1 s_CL1 s_AR2 s_CL2 craving_smoking stressed WITH
+        s_AR1 s_CL1 s_AR2 s_CL2 craving_smoking stressed;
+OUTPUT:
+TECH1 TECH8 CINTERVAL(HPD);

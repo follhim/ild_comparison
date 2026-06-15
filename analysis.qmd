@@ -62,7 +62,72 @@ data_dsem$id <- data_dsem$id |> as.numeric()
 
 # Empirical Example
 
-## DSEM AR(1) 
+## DSEM AR(1)
+### Mplus
+#### Model Specification
+```{r}
+#| eval: false
+# NOTE: Mplus uses lagged stressed (stressed&1) for the cross-lagged effect.
+ar1_dsem_mplus_fit <- mplusModeler(
+  mplusObject(
+    TITLE = "AR(1) DSEM - Mplus;",
+    VARIABLE = "
+      CLUSTER = id;
+      LAGGED = craving_smoking(1) stressed(1);
+      TINTERVAL = time(1);",
+    DEFINE = "
+      CENTER stressed (GRANDMEAN);",
+    ANALYSIS = "
+      TYPE = TWOLEVEL RANDOM;
+      ESTIMATOR = BAYES;
+      BITERATIONS = 50000 (10000);
+      CHAINS = 4;
+      PROCESSORS = 4;",
+    MODEL = "
+      %WITHIN%
+        s_AR | craving_smoking ON craving_smoking&1;
+        s_CL | craving_smoking ON stressed&1;
+
+      %BETWEEN%
+        craving_smoking stressed;
+        [s_AR s_CL];
+        s_AR s_CL craving_smoking stressed WITH
+        s_AR s_CL craving_smoking stressed;",
+    OUTPUT = "TECH1 TECH8 CINTERVAL(HPD) STDYX;",
+    usevariables = c("id", "time", "craving_smoking", "stressed"),
+    rdata = data_dsem
+  ),
+  dataout  = here("model_objects/data_dsem.dat"),
+  modelout = here("model_objects/ar1_dsem_mplus.inp"),
+  run      = 1L,
+  writeData = "ifmissing",
+  hashfilename = FALSE
+)
+```
+
+#### Results
+```{r}
+ar1_dsem_mplus_res <- readModels(here("model_objects/ar1_dsem_mplus.out"), quiet = TRUE)
+
+# Population means of random slopes (AR and CL)
+ar1_dsem_mplus_res$parameters$unstandardized %>%
+  filter(paramHeader == "Means", param %in% c("S_AR", "S_CL")) %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Between-level variances of random slopes
+ar1_dsem_mplus_res$parameters$unstandardized %>%
+  filter(paramHeader == "Variances", param %in% c("S_AR", "S_CL")) %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Residual variances (within-level)
+ar1_dsem_mplus_res$parameters$unstandardized %>%
+  filter(paramHeader == "Residual.Variances") %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Convergence: PSR values
+ar1_dsem_mplus_res$tech8$chain_convergence
+```
+
 ### Blimp
 #### Model Specification
 ```{r}
@@ -105,43 +170,40 @@ output(ar_blimp)
 #### Model Specification
 ```{r}
 #| eval: false
-# # Build and run model
-dsem_fit <- mplusModeler(
+# True bivariate VAR(1): both craving and stressed have AR + cross-lagged effects
+var1_dsem_mplus_fit <- mplusModeler(
   mplusObject(
-    TITLE = "DSEM - Stressed predicting Craving (random phi and beta);",
-
+    TITLE = "VAR(1) DSEM - Mplus;",
     VARIABLE = "
       CLUSTER = id;
-      LAGGED = craving_smoking(1);
+      LAGGED = craving_smoking(1) stressed(1);
       TINTERVAL = time(1);",
-
+    DEFINE = "
+      CENTER stressed (GRANDMEAN);",
     ANALYSIS = "
       TYPE = TWOLEVEL RANDOM;
       ESTIMATOR = BAYES;
-      BITERATIONS = 20000 (10000);
+      BITERATIONS = 50000 (10000);
       CHAINS = 4;
       PROCESSORS = 4;",
-
     MODEL = "
       %WITHIN%
-        phi  | craving_smoking ON craving_smoking&1;
-        beta | craving_smoking ON stressed;
+        s_AR1 | stressed        ON stressed&1;
+        s_CL1 | stressed        ON craving_smoking&1;
+        s_AR2 | craving_smoking ON craving_smoking&1;
+        s_CL2 | craving_smoking ON stressed&1;
 
       %BETWEEN%
-        craving_smoking;
-        stressed;
-        [phi];
-        [beta];
-        phi beta craving_smoking stressed WITH
-        phi beta craving_smoking stressed;",
-
+        craving_smoking stressed;
+        [s_AR1 s_CL1 s_AR2 s_CL2];
+        s_AR1 s_CL1 s_AR2 s_CL2 craving_smoking stressed WITH
+        s_AR1 s_CL1 s_AR2 s_CL2 craving_smoking stressed;",
     OUTPUT = "TECH1 TECH8 CINTERVAL(HPD);",
-
     usevariables = c("id", "time", "craving_smoking", "stressed"),
     rdata = data_dsem
   ),
   dataout  = here("model_objects/data_dsem.dat"),
-  modelout = here("model_objects/dsem_model.inp"),
+  modelout = here("model_objects/var1_dsem_mplus.inp"),
   run      = 1L,
   writeData = "ifmissing",
   hashfilename = FALSE
@@ -150,35 +212,32 @@ dsem_fit <- mplusModeler(
 
 #### Results
 ```{r}
-# Read results
-results <- readModels(here("model_objects/dsem_model.out"), quiet = TRUE)
+var1_dsem_mplus_res <- readModels(here("model_objects/var1_dsem_mplus.out"), quiet = TRUE)
 
-# Fixed effects: population means of random slopes
-results$parameters$unstandardized %>%
+# Population means of all 4 random slopes
+var1_dsem_mplus_res$parameters$unstandardized %>%
   filter(paramHeader == "Means",
-         param %in% c("PHI", "BETA")) %>%
+         param %in% c("S_AR1", "S_CL1", "S_AR2", "S_CL2")) %>%
   select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
 
-# Between-level variances
-results$parameters$unstandardized %>%
-  filter(paramHeader == "Variances") %>%
+# Between-level variances of random slopes
+var1_dsem_mplus_res$parameters$unstandardized %>%
+  filter(paramHeader == "Variances",
+         param %in% c("S_AR1", "S_CL1", "S_AR2", "S_CL2")) %>%
   select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
 
 # Residual variances (within-level)
-results$parameters$unstandardized %>%
+var1_dsem_mplus_res$parameters$unstandardized %>%
   filter(paramHeader == "Residual.Variances") %>%
   select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
 
-# Between-level correlations among random effects
-results$parameters$unstandardized %>%
+# Between-level covariances among random effects
+var1_dsem_mplus_res$parameters$unstandardized %>%
   filter(str_detect(paramHeader, "\\.WITH")) %>%
   select(paramHeader, param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
 
 # Convergence: PSR values from TECH8
-results$tech8$chain_convergence
-
-# Model summary
-results$summaries
+var1_dsem_mplus_res$tech8$chain_convergence
 ```
 
 
@@ -220,6 +279,73 @@ output(var_blimp)
 ```
 
 ## RDSEM AR(1)
+
+### Mplus
+#### Model Specification
+```{r}
+#| eval: false
+# AR(1) RDSEM: craving has AR, cross-lagged from stressed, and a random linear trend.
+# The trend random slope (s_trend) detrends the lagged craving implicitly in Mplus.
+ar1_rdsem_mplus_fit <- mplusModeler(
+  mplusObject(
+    TITLE = "AR(1) RDSEM - Mplus;",
+    VARIABLE = "
+      CLUSTER = id;
+      LAGGED = craving_smoking(1) stressed(1);
+      TINTERVAL = time(1);",
+    DEFINE = "
+      CENTER stressed (GRANDMEAN);",
+    ANALYSIS = "
+      TYPE = TWOLEVEL RANDOM;
+      ESTIMATOR = BAYES;
+      BITERATIONS = 50000 (10000);
+      CHAINS = 4;
+      PROCESSORS = 4;",
+    MODEL = "
+      %WITHIN%
+        s_AR    | craving_smoking ON craving_smoking&1;
+        s_CL    | craving_smoking ON stressed&1;
+        s_trend | craving_smoking ON time;
+
+      %BETWEEN%
+        craving_smoking stressed;
+        [s_AR s_CL s_trend];
+        s_AR s_CL s_trend craving_smoking stressed WITH
+        s_AR s_CL s_trend craving_smoking stressed;",
+    OUTPUT = "TECH1 TECH8 CINTERVAL(HPD);",
+    usevariables = c("id", "time", "craving_smoking", "stressed"),
+    rdata = data_dsem
+  ),
+  dataout  = here("model_objects/data_dsem.dat"),
+  modelout = here("model_objects/ar1_rdsem_mplus.inp"),
+  run      = 1L,
+  writeData = "ifmissing",
+  hashfilename = FALSE
+)
+```
+
+#### Results
+```{r}
+ar1_rdsem_mplus_res <- readModels(here("model_objects/ar1_rdsem_mplus.out"), quiet = TRUE)
+
+# Population means: AR, CL, and trend slopes
+ar1_rdsem_mplus_res$parameters$unstandardized %>%
+  filter(paramHeader == "Means", param %in% c("S_AR", "S_CL", "S_TREND")) %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Between-level variances
+ar1_rdsem_mplus_res$parameters$unstandardized %>%
+  filter(paramHeader == "Variances", param %in% c("S_AR", "S_CL", "S_TREND")) %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Residual variances (within-level)
+ar1_rdsem_mplus_res$parameters$unstandardized %>%
+  filter(paramHeader == "Residual.Variances") %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Convergence
+ar1_rdsem_mplus_res$tech8$chain_convergence
+```
 
 ### Blimp
 #### Model Specification
@@ -265,6 +391,79 @@ output(ar_rdsem_blimp)
 ```
 
 ## RDSEM VAR(1)
+
+### Mplus
+#### Model Specification
+```{r}
+#| eval: false
+# VAR(1) RDSEM: both variables have AR, cross-lagged, and random linear trend slopes.
+var1_rdsem_mplus_fit <- mplusModeler(
+  mplusObject(
+    TITLE = "VAR(1) RDSEM - Mplus;",
+    VARIABLE = "
+      CLUSTER = id;
+      LAGGED = craving_smoking(1) stressed(1);
+      TINTERVAL = time(1);",
+    DEFINE = "
+      CENTER stressed (GRANDMEAN);",
+    ANALYSIS = "
+      TYPE = TWOLEVEL RANDOM;
+      ESTIMATOR = BAYES;
+      BITERATIONS = 50000 (10000);
+      CHAINS = 4;
+      PROCESSORS = 4;",
+    MODEL = "
+      %WITHIN%
+        s_AR1     | stressed        ON stressed&1;
+        s_CL1     | stressed        ON craving_smoking&1;
+        s_AR2     | craving_smoking ON craving_smoking&1;
+        s_CL2     | craving_smoking ON stressed&1;
+        s_trend_s | stressed        ON time;
+        s_trend_c | craving_smoking ON time;
+
+      %BETWEEN%
+        craving_smoking stressed;
+        [s_AR1 s_CL1 s_AR2 s_CL2 s_trend_s s_trend_c];
+        s_AR1 s_CL1 s_AR2 s_CL2 s_trend_s s_trend_c
+          craving_smoking stressed WITH
+        s_AR1 s_CL1 s_AR2 s_CL2 s_trend_s s_trend_c
+          craving_smoking stressed;",
+    OUTPUT = "TECH1 TECH8 CINTERVAL(HPD);",
+    usevariables = c("id", "time", "craving_smoking", "stressed"),
+    rdata = data_dsem
+  ),
+  dataout  = here("model_objects/data_dsem.dat"),
+  modelout = here("model_objects/var1_rdsem_mplus.inp"),
+  run      = 1L,
+  writeData = "ifmissing",
+  hashfilename = FALSE
+)
+```
+
+#### Results
+```{r}
+var1_rdsem_mplus_res <- readModels(here("model_objects/var1_rdsem_mplus.out"), quiet = TRUE)
+
+# Population means: all 6 random slopes
+var1_rdsem_mplus_res$parameters$unstandardized %>%
+  filter(paramHeader == "Means",
+         param %in% c("S_AR1","S_CL1","S_AR2","S_CL2","S_TREND_S","S_TREND_C")) %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Between-level variances
+var1_rdsem_mplus_res$parameters$unstandardized %>%
+  filter(paramHeader == "Variances",
+         param %in% c("S_AR1","S_CL1","S_AR2","S_CL2","S_TREND_S","S_TREND_C")) %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Residual variances (within-level)
+var1_rdsem_mplus_res$parameters$unstandardized %>%
+  filter(paramHeader == "Residual.Variances") %>%
+  select(param, est, posterior_sd, lower_2.5ci, upper_2.5ci)
+
+# Convergence
+var1_rdsem_mplus_res$tech8$chain_convergence
+```
 
 ### Blimp
 #### Model Specification
@@ -1001,6 +1200,7 @@ extract_blimp_var1_rdsem <- function(fit) {
 
 ### Results
 ```{r}
+#| eval: false
 source(here::here("simulation_run.R"))  # load fresh code
 plan(multisession, workers = 8)     # start new workers with updated code
 # plan(sequential)
@@ -1032,6 +1232,62 @@ results_sim4 <- run_simulation_blimp_parallel(sim_num = 4,
                                               iter = 5000)
 ```
 
+## Mplus
+### Results
+```{r}
+#| eval: false
+source(here::here("simulation_run_mplus.R"))  # load fresh code + model specs
+plan(multisession, workers = 8)
+# workers × (chains × procs) ≤ total cores
+# default: 4 workers × 2 chains × 2 procs = 16 cores
+# plan(sequential); system("killall -9 mplus")
 
+results_sim1_mplus <- run_simulation_mplus_parallel(
+  sim_num = 1, N_vec = c(50, 100, 200), T_vec = c(30, 50),
+  n_reps = 1000 , biter = 15000, warmup = 10000, chains = 2, procs = 2
+)
+
+results_sim2_mplus <- run_simulation_mplus_parallel(
+  sim_num = 2, N_vec = c(50, 100, 200), T_vec = c(30, 50),
+  n_reps = 1000, biter = 15000, warmup = 10000, chains = 2, procs = 2
+)
+
+results_sim3_mplus <- run_simulation_mplus_parallel(
+  sim_num = 3, N_vec = c(50, 100, 200), T_vec = c(30, 50),
+  n_reps = 1000, biter = 15000, warmup = 10000, chains = 2, procs = 2
+)
+
+results_sim4_mplus <- run_simulation_mplus_parallel(
+  sim_num = 4, N_vec = c(50, 100, 200), T_vec = c(30, 50),
+  n_reps = 1000, biter = 15000, warmup = 10000, chains = 2, procs = 2
+)
+
+plan(sequential); system("killall -9 mplus")
+```
+
+## Blimp vs. Mplus Results
+```{r}
+# Load simulation_tables helpers (summarize_sim, make_gt_table, truth values)
+source(here::here("simulation_tables.R"))
+
+# ── Blimp tables (already computed in simulation_tables.R) ──
+gt1; gt2; gt3; gt4
+
+# ── Mplus tables ──
+sim1_mplus <- readRDS(here("simulation_results/sim1_full_mplus.Rds"))
+sim2_mplus <- readRDS(here("simulation_results/sim2_full_mplus.Rds"))
+sim3_mplus <- readRDS(here("simulation_results/sim3_full_mplus.Rds"))
+sim4_mplus <- readRDS(here("simulation_results/sim4_full_mplus.Rds"))
+
+summary1_mplus <- summarize_sim(sim1_mplus, 1)
+summary2_mplus <- summarize_sim(sim2_mplus, 2)
+summary3_mplus <- summarize_sim(sim3_mplus, 3)
+summary4_mplus <- summarize_sim(sim4_mplus, 4)
+
+make_gt_table(summary1_mplus, 1)
+make_gt_table(summary2_mplus, 2)
+make_gt_table(summary3_mplus, 3)
+make_gt_table(summary4_mplus, 4)
+```
 
 
