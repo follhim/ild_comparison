@@ -10,7 +10,14 @@
 #   results_sim1 <- run_simulation_mplus_parallel(sim_num = 1, n_reps = 1000)
 #
 # REQUIREMENTS:
-#   - Mplus installed and on system PATH (or set options(MplusAutomation.Mplus.exe = "..."))
+#   - Mplus installed. run_simulation_mplus_parallel() auto-detects the Mplus
+#     executable for macOS ("/Applications/Mplus/mplus") and falls back to
+#     "Mplus.exe"/"mplus" on PATH otherwise. On Windows, if Mplus is NOT on
+#     PATH (common with the default installer), pass the full path explicitly:
+#       run_simulation_mplus_parallel(sim_num = 1,
+#         mplus_command = "C:/Program Files/Mplus/Mplus.exe")
+#     (If "NA for all" results occur, this is the most likely cause — every
+#     rep fails before producing a .out file.)
 #   - Data generation functions loaded (they live in analysis.qmd; source that
 #     file's generate_* functions, or copy them here)
 # =============================================================================
@@ -205,10 +212,43 @@ run_simulation_mplus_parallel <- function(
     warmup   = 10000,    # burn-in (BITERATIONS minimum)
     chains   = 2,        # MCMC chains per model (2 keeps each run fast)
     procs    = 2,        # Mplus PROCESSORS per model (chains × procs ≤ cores/workers)
+    mplus_command = NULL,  # path/command for the Mplus executable; NULL = auto-detect
     save_dir = here("simulation_results")
 ) {
 
   dir.create(save_dir, showWarnings = FALSE, recursive = TRUE)
+
+  # -- Resolve the Mplus executable -----------------------------------------
+  # MplusAutomation's default detection can fail silently on Windows (Mplus.exe
+  # is often not on PATH), which makes every rep error out with no .out file
+  # and return NA for all extracted parameters. Resolve a concrete command here
+  # and pass it explicitly to mplusModeler() so it also works inside the
+  # future/furrr worker sessions.
+  local_mplus_command <- mplus_command
+  if (is.null(local_mplus_command)) {
+    if (.Platform$OS.type == "windows") {
+      win_candidates <- c(
+        "C:/Program Files/Mplus/Mplus.exe",
+        "C:/Program Files (x86)/Mplus/Mplus.exe"
+      )
+      found <- win_candidates[file.exists(win_candidates)]
+      local_mplus_command <- if (length(found) > 0) found[1] else "Mplus.exe"
+    } else if (Sys.info()[["sysname"]] == "Darwin") {
+      mac_candidates <- c("/Applications/Mplus/mplus")
+      found <- mac_candidates[file.exists(mac_candidates)]
+      local_mplus_command <- if (length(found) > 0) found[1] else "mplus"
+    } else {
+      local_mplus_command <- "mplus"
+    }
+  }
+  if (!file.exists(local_mplus_command) &&
+      Sys.which(local_mplus_command) == "") {
+    warning(sprintf(
+      "Mplus executable not found at '%s' and not on PATH. ",
+      local_mplus_command),
+      "Pass mplus_command = \"<full path to Mplus.exe>\" explicitly, e.g. ",
+      "mplus_command = \"C:/Program Files/Mplus/Mplus.exe\".")
+  }
 
   # -- Select data-generation function
   local_gen_fn <- switch(
@@ -287,7 +327,8 @@ run_simulation_mplus_parallel <- function(
                     run          = 1L,
                     writeData    = "always",
                     hashfilename = FALSE,
-                    quiet        = TRUE
+                    quiet        = TRUE,
+                    Mplus_command = local_mplus_command
                   )
                 )
               })
